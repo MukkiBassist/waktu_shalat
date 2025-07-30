@@ -170,6 +170,7 @@ class PrayerTimesController extends GetxController {
   // Ambil lokasi & hitung jadwal
   // ========================
   Future<void> fetchPrayerTimes() async {
+    print('fungsi fetchPrayerTimes');
     isLoading(true);
     errorMessage('');
     print('Memulai fetch jadwal sholat...');
@@ -178,13 +179,17 @@ class PrayerTimesController extends GetxController {
       Position? position = await _locationService.getCurrentLocation();
 
       if (position != null) {
+        print('position tidak null');
         List<Placemark> placemarks = await placemarkFromCoordinates(
           position.latitude,
           position.longitude,
         );
+        print('$placemarks');
         if (placemarks.isNotEmpty) {
+          print('placemarks tidak kosong');
           Placemark place = placemarks[0];
           currentAddress.value = place.locality ?? 'Lokasi Tidak Dikenal';
+          print('$currentAddress.value = place.locality');
         } else {
           currentAddress.value =
               'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';

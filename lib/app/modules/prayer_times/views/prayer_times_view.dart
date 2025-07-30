@@ -184,7 +184,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                 color: Theme.of(context).colorScheme.secondary,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 3),
                             Text(
                               controller.nextPrayerName.value,
                               style: TextStyle(
@@ -242,7 +242,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
-                        height: isExpanded.value ? 400 : 0,
+                        height: isExpanded.value ? 500 : 0,
                         child: ListView.separated(
                           physics: const NeverScrollableScrollPhysics(),
                           padding: EdgeInsets.zero,

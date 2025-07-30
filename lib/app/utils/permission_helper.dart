@@ -12,9 +12,9 @@ Future<void> checkAllNotificationPermissions() async {
 
 /// Meminta izin notifikasi (hanya berlaku untuk Android 13+)
 Future<void> _requestNotificationPermission() async {
-  if (Platform.isAndroid && await Permission.notification.isDenied) {
-    await Permission.notification.request();
-  }
+  //  if (Platform.isAndroid && await Permission.notification.isDenied) {
+  await Permission.notification.request();
+  //}
 }
 
 /// Membuka pengaturan "Exact Alarm" sekali saja (Android 12+)
