@@ -1,29 +1,25 @@
-// notification_controller.dart
+// lib/app/utils/notification_controller.dart
+
 // ignore_for_file: avoid_print
 
-import 'dart:ui';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:sholat/app/utils/notification_helper.dart';
 
 class NotificationController {
+  static const int dummyNotificationId = 1001;
+
   @pragma('vm:entry-point')
   static Future<void> initialize() async {
-    // Inisialisasi channel notifikasi
     await AwesomeNotifications().initialize(null, [
       NotificationChannel(
         channelKey: 'prayer_time_channel',
-        channelName: 'Prayer Notifications',
-        channelDescription: 'Notification for daily prayer times',
+        channelName: 'Jadwal Sholat',
+        channelDescription: 'Notifikasi waktu sholat harian',
         importance: NotificationImportance.High,
-        channelShowBadge: true,
-        defaultColor: const Color(0xFF2196f3),
-        ledColor: const Color(0xFFFFFFFF),
-        locked: true,
       ),
     ], debug: true);
-
-    // Listener untuk menerima aksi dari notifikasi
-    await AwesomeNotifications().setListeners(
+    AwesomeNotifications().setListeners(
+      onNotificationDisplayedMethod: onNotificationDisplayedMethod,
       onActionReceivedMethod: onActionReceivedMethod,
     );
   }
@@ -32,9 +28,36 @@ class NotificationController {
   @pragma('vm:entry-point')
   static Future<void> onActionReceivedMethod(ReceivedAction action) async {
     // Hanya tangani notifikasi dummy jam 00:01
-    if (action.id == 999999 || action.payload?['reschedule'] == 'true') {
+    if (action.id == dummyNotificationId ||
+        action.payload?['reschedule'] == 'true') {
       print('📌 Dummy notification received ➜ Rescheduling...');
       await handleRescheduleIfNeeded();
     }
+  }
+
+  // Jika Anda tidak membutuhkan event ini, cukup hapus atau buat metode kosong
+  @pragma("vm:entry-point")
+  static Future<void> onNotificationCreatedMethod(
+    ReceivedNotification receivedNotification,
+  ) async {
+    print('Notification created: ${receivedNotification.id}');
+  }
+
+  @pragma("vm:entry-point")
+  static Future<void> onNotificationDisplayedMethod(
+    ReceivedNotification notif,
+  ) async {
+    if (notif.id == dummyNotificationId &&
+        notif.channelKey == 'prayer_time_channel') {
+      print('Dummy Display Detected --> Trigger reschedule');
+    }
+    await handleRescheduleIfNeeded();
+  }
+
+  @pragma("vm:entry-point")
+  static Future<void> onDismissActionReceivedMethod(
+    ReceivedNotification receivedNotification,
+  ) async {
+    print('Notification dismissed: ${receivedNotification.id}');
   }
 }

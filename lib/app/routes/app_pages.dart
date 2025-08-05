@@ -4,7 +4,7 @@ import '../modules/dzikir/bindings/dzikir_binding.dart';
 import '../modules/dzikir/views/dzikir_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
-import '../modules/prayer_times/bindings/prayer_times_binding.dart';
+//import '../modules/prayer_times/bindings/prayer_times_binding.dart';
 import '../modules/prayer_times/views/prayer_times_view.dart';
 import '../modules/qibla/bindings/qibla_binding.dart';
 import '../modules/qibla/views/qibla_view.dart';
@@ -30,7 +30,7 @@ class AppPages {
     GetPage(
       name: _Paths.PRAYER_TIMES,
       page: () => const PrayerTimesView(),
-      binding: PrayerTimesBinding(),
+      //binding: PrayerTimesBinding(),
     ),
     GetPage(
       name: _Paths.QIBLA,
