@@ -2,8 +2,9 @@
 
 // ignore_for_file: avoid_print
 
+import 'dart:convert';
+
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
@@ -29,44 +30,36 @@ Future<void> markTodayAsScheduled() async {
 /// Jadwalkan notifikasi dummy setiap hari jam 00:01
 /// Ini akan memicu fungsi onActionReceivedMethod di NotificationController
 Future<void> scheduleDailyRescheduler() async {
-  final tzString = await AwesomeNotifications().getLocalTimeZoneIdentifier();
-  final now = DateTime.now();
+  final prefs = await SharedPreferences.getInstance();
+  final dummyScheduled = prefs.getBool('dummy_scheduled') ?? false;
 
-  var scheduledTime = DateTime(now.year, now.month, now.day, 0, 1, 0);
+  if (!dummyScheduled) {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: dummyNotificationId,
+        channelKey: 'prayer_time_channel',
+        title: '⏰ Penjadwalan Ulang Notifikasi',
+        body: 'Memastikan jadwal sholat hari ini aktif',
+        notificationLayout: NotificationLayout.Default,
+        displayOnForeground: true,
+        displayOnBackground: true,
+        payload: {'reschedule': 'true'},
+      ),
+      schedule: NotificationCalendar(
+        hour: 0,
+        minute: 1,
+        second: 0,
+        millisecond: 0,
+        repeats: true,
+        timeZone: await AwesomeNotifications().getLocalTimeZoneIdentifier(),
+      ),
+    );
 
-  if (scheduledTime.isBefore(now)) {
-    scheduledTime = scheduledTime.add(const Duration(days: 1));
+    await prefs.setBool('dummy_scheduled', true);
+    print('✅ Dummy notification dijadwalkan (00:01 setiap hari).');
+  } else {
+    print('⏭️ Dummy notification sudah dijadwalkan sebelumnya.');
   }
-
-  await AwesomeNotifications().cancel(dummyNotificationId);
-
-  await AwesomeNotifications().createNotification(
-    content: NotificationContent(
-      id: dummyNotificationId,
-      channelKey: 'prayer_time_channel',
-      title: 'Auto-Reschedule Sholat',
-      body: 'Notifikasi ini memicu pembaruan jadwal sholat harian.',
-      notificationLayout: NotificationLayout.Default,
-      autoDismissible: true,
-      locked: true,
-      payload: {'reschedule': 'true'},
-    ),
-    schedule: NotificationCalendar(
-      year: scheduledTime.year,
-      month: scheduledTime.month,
-      day: scheduledTime.day,
-      hour: scheduledTime.hour,
-      minute: scheduledTime.minute,
-      second: 0,
-      repeats: false,
-      allowWhileIdle: true,
-      preciseAlarm: true,
-      timeZone: tzString,
-    ),
-  );
-  print(
-    '✅ [NotificationHelper] Dummy rescheduler dijadwalkan pada: $scheduledTime.',
-  );
 }
 
 /// Memastikan notifikasi sholat dijadwalkan jika aplikasi dibuka manual dan belum dijadwalkan
@@ -91,15 +84,31 @@ Future<void> handleRescheduleIfNeeded() async {
 /// Jadwalkan notifikasi untuk semua waktu sholat
 Future<void> schedulePrayerNotifications(
   List<PrayerTime> times,
-  RxMap<String, bool> prefs,
+  Map<String, bool> notificationPrefs,
 ) async {
   print('🔄 [NotificationHelper] Memulai penjadwalan notifikasi sholat...');
-  await AwesomeNotifications().cancelAll();
+  await AwesomeNotifications().cancelNotificationsByChannelKey(
+    'prayer_time_channel',
+  ); // Ini yang menghentikan notifikasi berulang
   final tzString = await AwesomeNotifications().getLocalTimeZoneIdentifier();
+
+  // Ambil preferensi notifikasi dari SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final storedPrefs = prefs.getString('prayerNotifPrefs');
+  final Map<String, bool> notificationPrefs = storedPrefs != null
+      ? Map<String, bool>.from(jsonDecode(storedPrefs))
+      : {
+          'Subuh': true,
+          'Terbit Matahari': false,
+          'Dzuhur': true,
+          'Ashar': true,
+          'Maghrib': true,
+          'Isya': true,
+        };
 
   for (var p in times) {
     final scheduledTime = p.dateTime;
-    final enabled = prefs[p.name] ?? true;
+    final enabled = notificationPrefs[p.name] ?? true;
 
     if (scheduledTime.isAfter(DateTime.now()) && enabled) {
       final notifId =
@@ -113,7 +122,7 @@ Future<void> schedulePrayerNotifications(
           title: 'Waktu ${p.name}',
           body: 'Saatnya ${p.name} - ${p.time}',
           autoDismissible: true,
-          category: NotificationCategory.Alarm,
+          category: NotificationCategory.Reminder,
         ),
         schedule: NotificationCalendar(
           year: scheduledTime.year,
@@ -140,4 +149,16 @@ Future<void> schedulePrayerNotifications(
     }
   }
   await markTodayAsScheduled();
+  forceRescheduleByResetDate();
+}
+
+Future<void> forceRescheduleByResetDate() async {
+  final prefs = await SharedPreferences.getInstance();
+  final yesterday = DateFormat(
+    'yyyy-MM-dd',
+  ).format(DateTime.now().subtract(Duration(days: 1)));
+  await prefs.setString('last_scheduled_date', yesterday);
+  print(
+    '🔄 [NotificationHelper] Paksa reset tanggal penjadwalan ke $yesterday',
+  );
 }

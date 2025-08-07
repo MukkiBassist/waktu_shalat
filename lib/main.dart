@@ -56,8 +56,6 @@ void main() async {
   // 3. Pasang listener notifikasi
   AwesomeNotifications().setListeners(
     onActionReceivedMethod: NotificationController.onActionReceivedMethod,
-    onNotificationCreatedMethod:
-        NotificationController.onNotificationCreatedMethod,
     onNotificationDisplayedMethod:
         NotificationController.onNotificationDisplayedMethod,
     onDismissActionReceivedMethod:

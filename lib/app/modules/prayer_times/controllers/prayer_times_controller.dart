@@ -128,17 +128,25 @@ class PrayerTimesController extends GetxController {
     try {
       Position? position = await _locationService.getCurrentLocation();
       if (position != null) {
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks[0];
-          currentAddress.value =
-              '${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}';
-        } else {
+        // Tambahkan blok try-catch khusus untuk geocoding
+        try {
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
+          if (placemarks.isNotEmpty) {
+            Placemark place = placemarks[0];
+            currentAddress.value =
+                '${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}';
+          } else {
+            currentAddress.value =
+                'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
+          }
+        } catch (e) {
+          print('⚠️ Gagal mendapatkan nama lokasi (geocoding): $e');
           currentAddress.value =
               'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
+          // Aplikasi akan tetap berjalan, hanya nama lokasi yang tidak didapat
         }
 
         final params = CalculationMethod.muslim_world_league.getParameters();
@@ -169,7 +177,10 @@ class PrayerTimesController extends GetxController {
         prayerTimes.assignAll(fetchedTimes);
         await _cachePrayerData(fetchedTimes, currentAddress.value);
         _checkActivePrayer();
-        await schedulePrayerNotifications(fetchedTimes, notificationPrefs);
+        await schedulePrayerNotifications(
+          prayerTimes,
+          notificationPrefs,
+        ); // Pastikan .value
         await markTodayAsScheduled();
 
         print('✅ Jadwal berhasil diambil & notifikasi dijadwalkan ulang.');
@@ -236,26 +247,35 @@ class PrayerTimesController extends GetxController {
     String next = '';
     DateTime? nextPrayerTime;
 
-    for (int i = 0; i < prayerTimes.length; i++) {
-      if (now.isAfter(prayerTimes[i].dateTime.toLocal())) {
+    // Temukan sholat aktif (sholat terakhir yang sudah lewat)
+    for (int i = prayerTimes.length - 1; i >= 0; i--) {
+      if (now.isAfter(prayerTimes[i].dateTime)) {
         active = prayerTimes[i].name;
-      } else {
+        break;
+      }
+    }
+
+    // Temukan sholat berikutnya (sholat pertama yang belum terlewat)
+    for (int i = 0; i < prayerTimes.length; i++) {
+      if (now.isBefore(prayerTimes[i].dateTime)) {
         next = prayerTimes[i].name;
         nextPrayerTime = prayerTimes[i].dateTime;
         break;
       }
     }
 
-    if (active == 'Isya' && now.isAfter(prayerTimes[5].dateTime.toLocal())) {
-      next = 'Subuh';
-      nextPrayerTime = prayerTimes[0].dateTime.toLocal().add(
-        const Duration(days: 1),
-      );
-    } else if (active.isEmpty &&
-        now.isBefore(prayerTimes[0].dateTime.toLocal())) {
+    // Logika khusus untuk periode setelah Isya sampai Subuh
+    if (next.isEmpty) {
+      // Jika semua sholat hari ini sudah terlewat,
+      // maka sholat aktif terakhir adalah Isya.
       active = 'Isya';
+      // Sholat berikutnya adalah Subuh keesokan hari.
+      // Ambil waktu Subuh hari ini dan tambahkan 1 hari.
+      nextPrayerTime = prayerTimes
+          .firstWhere((p) => p.name == 'Subuh')
+          .dateTime
+          .add(const Duration(days: 1));
       next = 'Subuh';
-      nextPrayerTime = prayerTimes[0].dateTime.toLocal();
     }
 
     currentActivePrayer.value = active;
@@ -263,11 +283,9 @@ class PrayerTimesController extends GetxController {
 
     if (nextPrayerTime != null && nextPrayerName.value.isNotEmpty) {
       final timeRemaining = nextPrayerTime.difference(now);
-      if (timeRemaining.isNegative) {
-        _checkActivePrayer();
-        return;
+      if (!timeRemaining.isNegative) {
+        timeToNextPrayer.value = _formatDuration(timeRemaining);
       }
-      timeToNextPrayer.value = _formatDuration(timeRemaining);
     } else {
       timeToNextPrayer.value = 'N/A';
     }
