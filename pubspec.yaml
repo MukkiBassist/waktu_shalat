@@ -31,6 +31,7 @@ dependencies:
   salomon_bottom_bar: ^3.3.2
   shared_preferences: ^2.5.3
   timezone: ^0.10.1
+  workmanager: ^0.9.0+2
 
 dev_dependencies:
   flutter_lints: ^6.0.0

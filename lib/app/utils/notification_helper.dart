@@ -2,8 +2,6 @@
 
 // ignore_for_file: avoid_print
 
-import 'dart:convert';
-
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -82,7 +80,7 @@ Future<void> handleRescheduleIfNeeded() async {
 }
 
 /// Jadwalkan notifikasi untuk semua waktu sholat
-Future<void> schedulePrayerNotifications(
+/* Future<void> schedulePrayerNotifications(
   List<PrayerTime> times,
   Map<String, bool> notificationPrefs,
 ) async {
@@ -150,7 +148,7 @@ Future<void> schedulePrayerNotifications(
   }
   await markTodayAsScheduled();
   forceRescheduleByResetDate();
-}
+} */
 
 Future<void> forceRescheduleByResetDate() async {
   final prefs = await SharedPreferences.getInstance();

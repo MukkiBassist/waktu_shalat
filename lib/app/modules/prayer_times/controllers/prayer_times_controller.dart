@@ -1,3 +1,4 @@
+// lib/app/modules/prayer_times/controllers/prayer_times_controller.dart
 // ignore_for_file: avoid_print
 
 import 'dart:async';
@@ -10,11 +11,12 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/location_service.dart';
+import '../../../helpers/notification_scheduler.dart';
 import '../../../utils/notification_helper.dart';
 
-// =====================
-// Class Model PrayerTime
-// =====================
+/// =====================
+/// Class Model PrayerTime
+/// =====================
 class PrayerTime {
   final int id;
   final String name;
@@ -25,9 +27,9 @@ class PrayerTime {
     : time = DateFormat('HH:mm').format(dateTime.toLocal());
 }
 
-// ===========================
-// Fungsi simpan ke cache lokal
-// ===========================
+/// ===========================
+/// Fungsi simpan ke cache lokal
+/// ===========================
 Future<void> _cachePrayerData(List<PrayerTime> times, String address) async {
   final prefs = await SharedPreferences.getInstance();
 
@@ -46,21 +48,22 @@ Future<void> _cachePrayerData(List<PrayerTime> times, String address) async {
   await prefs.setString('cachedDate', DateTime.now().toIso8601String());
 }
 
-// =============================
-// Controller Utama: PrayerTimes
-// =============================
+/// =============================
+/// Controller Utama: PrayerTimes
+/// =============================
 class PrayerTimesController extends GetxController {
   final LocationService _locationService = LocationService();
 
+  // Rx store (dipakai di UI)
   final notificationPrefs = <String, bool>{}.obs;
-  var prayerTimes = <PrayerTime>[].obs;
-  var currentAddress = ''.obs;
-  var isLoading = true.obs;
-  var errorMessage = ''.obs;
+  final prayerTimes = <PrayerTime>[].obs;
+  final currentAddress = ''.obs;
+  final isLoading = true.obs;
+  final errorMessage = ''.obs;
 
-  var currentActivePrayer = ''.obs;
-  var nextPrayerName = ''.obs;
-  var timeToNextPrayer = ''.obs;
+  final currentActivePrayer = ''.obs;
+  final nextPrayerName = ''.obs;
+  final timeToNextPrayer = ''.obs;
 
   late Timer _timer;
 
@@ -72,9 +75,7 @@ class PrayerTimesController extends GetxController {
     instance = this;
     loadNotificationPrefs();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!isLoading.value) {
-        _checkActivePrayer();
-      }
+      if (!isLoading.value) _checkActivePrayer();
     });
   }
 
@@ -82,6 +83,33 @@ class PrayerTimesController extends GetxController {
   void onClose() {
     _timer.cancel();
     super.onClose();
+  }
+
+  // -------------------------
+  // PUBLIC API untuk scheduler
+  // -------------------------
+
+  /// Mengembalikan list waktu sholat untuk **hari ini** (non-Rx)
+  List<PrayerTime> get prayerTimesForToday {
+    final now = DateTime.now();
+    return prayerTimes.where((p) {
+      final d = p.dateTime.toLocal();
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }).toList();
+  }
+
+  /// Mengembalikan preferensi notifikasi sebagai Map biasa (untuk scheduling)
+  Map<String, bool> get notificationPrefsMap =>
+      Map<String, bool>.from(notificationPrefs);
+
+  /// Muat preferensi & data cached. Jika cache tidak valid maka ambil fresh.
+  /// Default: tidak langsung menjadwalkan (schedule=false)
+  Future<void> refreshPrayerTimesAndPrefs({bool schedule = false}) async {
+    await loadNotificationPrefs();
+    final loadedFromCache = await loadCachedPrayerData();
+    if (!loadedFromCache) {
+      await fetchPrayerTimes(schedule: schedule);
+    }
   }
 
   // ==================================
@@ -120,78 +148,82 @@ class PrayerTimesController extends GetxController {
   // ========================
   // Ambil lokasi & hitung jadwal
   // ========================
-  Future<void> fetchPrayerTimes() async {
+  /// Jika [schedule] == true --> fungsi juga akan memanggil scheduler (jadwalkan notifikasi).
+  /// Jika false, hanya ambil waktu & cache.
+  Future<void> fetchPrayerTimes({bool schedule = true}) async {
     print('✅ Memulai fetch jadwal sholat...');
     isLoading(true);
     errorMessage('');
 
     try {
       Position? position = await _locationService.getCurrentLocation();
-      if (position != null) {
-        // Tambahkan blok try-catch khusus untuk geocoding
-        try {
-          List<Placemark> placemarks = await placemarkFromCoordinates(
-            position.latitude,
-            position.longitude,
-          );
-          if (placemarks.isNotEmpty) {
-            Placemark place = placemarks[0];
-            currentAddress.value =
-                '${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}';
-          } else {
-            currentAddress.value =
-                'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
-          }
-        } catch (e) {
-          print('⚠️ Gagal mendapatkan nama lokasi (geocoding): $e');
+      if (position == null) {
+        errorMessage('Tidak bisa mendapatkan lokasi. Coba lagi.');
+        return;
+      }
+
+      // geocoding optional (jika gagal, lanjutkan)
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          currentAddress.value =
+              '${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}';
+        } else {
           currentAddress.value =
               'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
-          // Aplikasi akan tetap berjalan, hanya nama lokasi yang tidak didapat
         }
-
-        final params = CalculationMethod.muslim_world_league.getParameters();
-        params.madhab = Madhab.shafi;
-        final prayerTimesResult = PrayerTimes(
-          Coordinates(position.latitude, position.longitude),
-          DateComponents.from(DateTime.now()),
-          params,
-        );
-
-        List<PrayerTime> fetchedTimes = [
-          PrayerTime(id: 1, name: 'Subuh', dateTime: prayerTimesResult.fajr),
-          PrayerTime(
-            id: 0,
-            name: 'Terbit Matahari',
-            dateTime: prayerTimesResult.sunrise,
-          ),
-          PrayerTime(id: 2, name: 'Dzuhur', dateTime: prayerTimesResult.dhuhr),
-          PrayerTime(id: 3, name: 'Ashar', dateTime: prayerTimesResult.asr),
-          PrayerTime(
-            id: 4,
-            name: 'Maghrib',
-            dateTime: prayerTimesResult.maghrib,
-          ),
-          PrayerTime(id: 5, name: 'Isya', dateTime: prayerTimesResult.isha),
-        ];
-
-        prayerTimes.assignAll(fetchedTimes);
-        await _cachePrayerData(fetchedTimes, currentAddress.value);
-        _checkActivePrayer();
-        await schedulePrayerNotifications(
-          prayerTimes,
-          notificationPrefs,
-        ); // Pastikan .value
-        await markTodayAsScheduled();
-
-        print('✅ Jadwal berhasil diambil & notifikasi dijadwalkan ulang.');
-      } else {
-        errorMessage('Tidak bisa mendapatkan lokasi. Coba lagi.');
+      } catch (e) {
+        print('⚠️ Gagal mendapatkan nama lokasi (geocoding): $e');
+        currentAddress.value =
+            'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
       }
-    } catch (e, stackTrace) {
+
+      final params = CalculationMethod.muslim_world_league.getParameters();
+      params.madhab = Madhab.shafi;
+      final prayerTimesResult = PrayerTimes(
+        Coordinates(position.latitude, position.longitude),
+        DateComponents.from(DateTime.now()),
+        params,
+      );
+
+      final fetchedTimes = <PrayerTime>[
+        PrayerTime(id: 1, name: 'Subuh', dateTime: prayerTimesResult.fajr),
+        PrayerTime(
+          id: 0,
+          name: 'Terbit Matahari',
+          dateTime: prayerTimesResult.sunrise,
+        ),
+        PrayerTime(id: 2, name: 'Dzuhur', dateTime: prayerTimesResult.dhuhr),
+        PrayerTime(id: 3, name: 'Ashar', dateTime: prayerTimesResult.asr),
+        PrayerTime(id: 4, name: 'Maghrib', dateTime: prayerTimesResult.maghrib),
+        PrayerTime(id: 5, name: 'Isya', dateTime: prayerTimesResult.isha),
+      ];
+
+      prayerTimes.assignAll(fetchedTimes);
+      await _cachePrayerData(fetchedTimes, currentAddress.value);
+      _checkActivePrayer();
+
+      // Hanya jadwalkan jika diminta (untuk menghindari double-scheduling dari background logic)
+      if (schedule) {
+        // Pakai entrypoint background-safe (notification_scheduler)
+        await schedulePrayerNotificationsWithCatchup(
+          fetchedTimes,
+          notificationPrefsMap,
+        );
+        await markTodayAsScheduled();
+      }
+
+      print(
+        '✅ Jadwal berhasil diambil${schedule ? ' & notifikasi dijadwalkan ulang.' : '.'}',
+      );
+    } catch (e, st) {
       print('❌ Error pada fetchPrayerTimes: $e');
-      print('❌ StackTrace: $stackTrace');
-      String displayMessage = 'Terjadi kesalahan: ${e.toString()}';
-      errorMessage(displayMessage);
+      print(st);
+      errorMessage('Terjadi kesalahan: ${e.toString()}');
     } finally {
       isLoading(false);
     }
@@ -266,11 +298,7 @@ class PrayerTimesController extends GetxController {
 
     // Logika khusus untuk periode setelah Isya sampai Subuh
     if (next.isEmpty) {
-      // Jika semua sholat hari ini sudah terlewat,
-      // maka sholat aktif terakhir adalah Isya.
       active = 'Isya';
-      // Sholat berikutnya adalah Subuh keesokan hari.
-      // Ambil waktu Subuh hari ini dan tambahkan 1 hari.
       nextPrayerTime = prayerTimes
           .firstWhere((p) => p.name == 'Subuh')
           .dateTime
@@ -285,6 +313,8 @@ class PrayerTimesController extends GetxController {
       final timeRemaining = nextPrayerTime.difference(now);
       if (!timeRemaining.isNegative) {
         timeToNextPrayer.value = _formatDuration(timeRemaining);
+      } else {
+        timeToNextPrayer.value = 'N/A';
       }
     } else {
       timeToNextPrayer.value = 'N/A';

@@ -2,7 +2,10 @@ import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_control
 import 'package:sholat/app/services/notification_service.dart';
 
 /// Fungsi utama untuk menjadwalkan notifikasi, termasuk catch-up
-Future<void> schedulePrayerNotificationsWithCatchup() async {
+Future<void> schedulePrayerNotificationsWithCatchup(
+  List<PrayerTime> newPrayerTimes,
+  Map<String, bool> notificationPrefs,
+) async {
   final controller = PrayerTimesController.instance;
   final prayerTimes = controller.prayerTimes;
   final userPrefs = controller.notificationPrefs;
@@ -39,7 +42,7 @@ Future<void> schedulePrayerNotificationsWithCatchup() async {
 
   // Eksekusi penjadwalan
   for (var p in scheduled) {
-    await scheduleNotification(
+    await schedulePrayerNotification(
       id: p.id,
       title: 'Waktu Sholat ${p.name}',
       body: 'Sudah masuk waktu sholat ${p.name}.',

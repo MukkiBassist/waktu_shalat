@@ -13,6 +13,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
 import 'package:sholat/app/utils/notification_helper.dart';
 
+import '../helpers/notification_scheduler.dart';
+
 class NotificationController {
   static const int dummyNotificationId = 999999;
 
@@ -27,9 +29,9 @@ class NotificationController {
       ),
     ], debug: true);
 
-    AwesomeNotifications().setListeners(
+    /*  AwesomeNotifications().setListeners(
       onActionReceivedMethod: onActionReceivedMethod,
-    );
+    ); */
   }
 
   @pragma("vm:entry-point")
@@ -38,6 +40,9 @@ class NotificationController {
   ) async {
     print(
       '🔔 Notifikasi diterima: ${receivedAction.channelKey} | ID: ${receivedAction.id}',
+    );
+    print(
+      '===> [onActionReceivedMethod] DIPANGGIL: channel=${receivedAction.channelKey}, id=${receivedAction.id}',
     );
 
     if (receivedAction.id == dummyNotificationId &&
@@ -48,7 +53,7 @@ class NotificationController {
 
       if (lastScheduled != today) {
         print('✅ Belum dijadwalkan hari ini ➜ menjadwalkan ulang...');
-        await NotificationController._performReschedule();
+        await NotificationController.performReschedule();
       } else {
         print('⏭️ Sudah dijadwalkan hari ini ($today), skip reschedule.');
       }
@@ -73,7 +78,7 @@ class NotificationController {
 
       if (lastScheduled != today) {
         print('✅ Belum dijadwalkan hari ini ➜ menjadwalkan ulang...');
-        await NotificationController._performReschedule();
+        await NotificationController.performReschedule();
       } else {
         print('⏭️ Sudah dijadwalkan hari ini ($today), skip reschedule.');
       }
@@ -89,13 +94,11 @@ class NotificationController {
 
   // PENTING: Pindahkan semua logika fetching & scheduling ke sini
   @pragma("vm:entry-point")
-  static Future<void> _performReschedule() async {
+  static Future<void> performReschedule() async {
     try {
       await cancelAllPrayerNotifications();
       // 1. Dapatkan posisi saat ini secara mandiri
-      /*  Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-    ); */
+
       // Tentukan pengaturan akurasi yang disesuaikan untuk Android atau platform lainnya.
       final LocationSettings locationSettings = (GetPlatform.isAndroid)
           ? AndroidSettings(
@@ -148,7 +151,10 @@ class NotificationController {
             };
 
       // 5. Panggil fungsi penjadwalan notifikasi dengan argumen yang lengkap
-      await schedulePrayerNotifications(newPrayerTimes, notificationPrefs);
+      await schedulePrayerNotificationsWithCatchup(
+        newPrayerTimes,
+        notificationPrefs,
+      );
       await markTodayAsScheduled();
 
       print('✅ Penjadwalan ulang notifikasi berhasil.');
