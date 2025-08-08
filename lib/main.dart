@@ -1,5 +1,4 @@
-// main.dart (versi final aman) - versi fix tanpa loadPrayerTimes/todayPrayerTimes yang hilang
-
+// main.dart (versi final aman)
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
