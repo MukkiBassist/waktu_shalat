@@ -1,3 +1,4 @@
+//lib\app\modules\prayer_times\views\prayer_times_view.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -66,7 +67,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () => controller.fetchPrayerTimes(),
+                      onPressed: () => controller.loadPrayerTimes(),
                       child: const Text('Silahkan coba lagi'),
                     ),
                   ],
@@ -246,12 +247,26 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                         child: ListView.separated(
                           physics: const NeverScrollableScrollPhysics(),
                           padding: EdgeInsets.zero,
-                          itemCount: controller.prayerTimes.length,
+
+                          // Perbaikan di sini: gunakan entries untuk mendapatkan key-value pair
+                          /* itemCount: controller.prayerTimes.length,
                           itemBuilder: (_, index) {
                             final prayer = controller.prayerTimes[index];
                             final isCurrent =
                                 controller.currentActivePrayer.value ==
-                                prayer.name;
+                                prayer.name; */
+                          // End of Perbaikan
+                          itemCount: controller.prayerTimes.length,
+                          itemBuilder: (_, index) {
+                            // Akses entri Map menggunakan index
+                            final prayerEntry = controller.prayerTimes.entries
+                                .elementAt(index);
+                            final prayerName = prayerEntry.key;
+                            final prayerTime = prayerEntry.value;
+
+                            final isCurrent =
+                                controller.currentActivePrayer.value ==
+                                prayerName;
 
                             return Container(
                               padding: const EdgeInsets.symmetric(
@@ -277,7 +292,9 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    prayer.name,
+                                    /* prayer.name, */
+                                    // <-- Perbaikan di sini -->
+                                    prayerName,
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -291,7 +308,9 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                     ),
                                   ),
                                   Text(
-                                    prayer.time,
+                                    // Perbaikan di sini: gunakan DateTime.parse untuk mengonversi string ke DateTime
+                                    prayerTime,
+                                    // end of Perbaikan
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,

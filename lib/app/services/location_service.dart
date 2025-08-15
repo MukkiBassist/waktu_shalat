@@ -1,133 +1,70 @@
 // lib/app/services/location_service.dart
 // ignore_for_file: avoid_print
-
+import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sholat/app/utils/logger.dart';
 
 class LocationService {
-  Future<Position?> getCurrentLocation() async {
-    print('LocationService: Starting getCurrentLocation...'); // Tambah ini
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<Position?> getCurrentLocation({bool saveToPrefs = true}) async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print('LocationService: Location services are disabled.'); // Tambah ini
-      return Future.error('Location services are disabled.');
+      logWarning('LocationService: disabled');
+      return null;
     }
-    print('LocationService: Location service is enabled.'); // Tambah ini
 
-    permission = await Geolocator.checkPermission();
-    print(
-      'LocationService: Initial permission status: $permission',
-    ); // Tambah ini
-
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      print('LocationService: Permissions denied, requesting...'); // Tambah ini
-      permission = await Geolocator.requestPermission(); // Meminta izin lokasi
-      print(
-        'LocationService: Permission after request: $permission',
-      ); // Tambah ini
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        print(
-          'LocationService: Location permissions are denied again.',
-        ); // Tambah ini
-        return Future.error('Location permissions are denied');
+        logWarning('LocationService: permission denied');
+        return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print(
-        'LocationService: Location permissions are permanently denied.',
-      ); // Tambah ini
-      return Future.error(
-        'Location permissions are permanently denied, we cannot request permissions.',
-      );
+      logWarning('LocationService: permission denied forever');
+      return null;
     }
 
-    // When we reach here, permissions are granted and we can
-    // continue accessing the position of the device.
     try {
-      Position position = await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 0,
         ),
       );
-      print(
-        'LocationService: Location successfully obtained: ${position.latitude}, ${position.longitude}',
-      ); // Tambah ini
+
+      if (saveToPrefs) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('last_lat', position.latitude);
+        await prefs.setDouble('last_lon', position.longitude);
+      }
+
       return position;
     } catch (e) {
-      print('LocationService: Error getting position: $e'); // Tambah ini
-      return Future.error(
-        'Failed to get current position: $e',
-      ); // Pastikan ini juga mengembalikan error
+      logError('LocationService: error obtaining position -> $e');
+      return null;
+    }
+  }
+
+  Future<String> getAddressFromCoordinates(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final placemarks = await geocoding.placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        return "${place.locality}, ${place.administrativeArea}, ${place.country}";
+      }
+      return "Alamat tidak ditemukan";
+    } catch (e) {
+      logError("Error getAddressFromCoordinates: $e");
+      return "Gagal mendapatkan alamat";
     }
   }
 }
-
-
-//=====================================================
-/* import 'package:geolocator/geolocator.dart';
-
-class LocationService {
-  Future<Position?> getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are not enabled don't continue
-      // accessing the position and request users to enable the location services.
-      return Future.error('Location services are disabled.');
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Permissions are denied, next time you could try
-        // requesting permissions again (this is also where
-        // Android's shouldShowRequestPermissionRationale
-        // documented code can be found)
-        return Future.error('Location permissions are denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      // Permissions are denied forever, handle appropriately.
-      return Future.error(
-        'Location permissions are permanently denied, we cannot request permissions.',
-      );
-    }
-
-    // When we reach here, permissions are granted and we can
-    // continue accessing the position of the device.
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 0,
-
-        // engaturan khusus platform di sini:
-        // androidSettings: AndroidSettings(
-        //   accuracy: LocationAccuracy.high,
-        //   forceLocationManager: true, // Untuk menggunakan LocationManager API pada Android
-        //   intervalDuration: const Duration(seconds: 10),
-        //   distanceFilter: 0,
-        // ),
-        // appleSettings: AppleSettings(
-        //   accuracy: LocationAccuracy.high,
-        //   activityType: ActivityType.fitness,
-        //   distanceFilter: 0,
-        //   pauseLocationUpdatesAutomatically: true,
-        //   showBackgroundLocationIndicator: false,
-        // ),
-      ),
-
-      //desiredAccuracy: LocationAccuracy.high,
-    );
-  }
-} */
-

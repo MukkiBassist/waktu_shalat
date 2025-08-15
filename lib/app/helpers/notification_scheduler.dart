@@ -1,52 +1,45 @@
-import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
+// lib/app/helpers/notification_scheduler.dart
+// ignore_for_file: avoid_print
+
 import 'package:sholat/app/services/notification_service.dart';
 
-/// Fungsi utama untuk menjadwalkan notifikasi, termasuk catch-up
+/// Minimal model to match your app's PrayerTime if needed
+class PrayerTime {
+  final int id;
+  final String name;
+  final DateTime dateTime;
+  PrayerTime({required this.id, required this.name, required this.dateTime});
+}
+
+/// Entry point used both from foreground and background isolates.
+/// Schedules one-shot notifications for given list; skips past times & respects user prefs.
 Future<void> schedulePrayerNotificationsWithCatchup(
-  List<PrayerTime> newPrayerTimes,
+  List<PrayerTime> times,
   Map<String, bool> notificationPrefs,
 ) async {
-  final controller = PrayerTimesController.instance;
-  final prayerTimes = controller.prayerTimes;
-  final userPrefs = controller.notificationPrefs;
+  final notif = NotificationService();
 
+  // cancel only previous prayer notifications (done upstream usually)
+  // schedule new ones
+  int nextId = 1000;
   final now = DateTime.now();
 
-  final List<PrayerTime> scheduled = [];
+  for (final p in times) {
+    final enabled = notificationPrefs[p.name] ?? true;
 
-  for (var prayer in prayerTimes) {
-    // Lewati 'Terbit Matahari' jika dimatikan
-    if (prayer.name == 'Terbit Matahari') continue;
-
-    final shouldNotify = userPrefs[prayer.name] ?? true;
-
-    if (!shouldNotify) continue;
-
-    // 1. Catch-up: Jadwalkan Isya kemarin jika sudah lewat tengah malam
-    if (prayer.name == 'Isya' &&
-        now.hour < 4 &&
-        prayer.dateTime.isBefore(now)) {
-      final isyaYesterday = PrayerTime(
-        id: prayer.id,
-        name: prayer.name,
-        dateTime: prayer.dateTime,
-      );
-      scheduled.add(isyaYesterday);
+    if (!enabled) continue;
+    if (!p.dateTime.isAfter(now)) {
+      // skip past times, except special catch-up rules if you want (e.g. Isya after midnight)
+      continue;
     }
 
-    // 2. Normal scheduling untuk yang belum lewat
-    if (prayer.dateTime.isAfter(now)) {
-      scheduled.add(prayer);
-    }
-  }
-
-  // Eksekusi penjadwalan
-  for (var p in scheduled) {
-    await schedulePrayerNotification(
-      id: p.id,
-      title: 'Waktu Sholat ${p.name}',
-      body: 'Sudah masuk waktu sholat ${p.name}.',
+    await notif.schedulePrayerNotification(
+      id: nextId++,
+      title: 'Waktu ${p.name}',
+      body:
+          'Saatnya ${p.name} - ${p.dateTime.hour.toString().padLeft(2, '0')}:${p.dateTime.minute.toString().padLeft(2, '0')}',
       dateTime: p.dateTime,
+      payload: 'prayer_${p.name}',
     );
   }
 }

@@ -1,133 +1,46 @@
 // lib/app/utils/notification_controller.dart
-
 // ignore_for_file: avoid_print
 
 import 'dart:convert';
-
-import 'package:adhan/adhan.dart';
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:get/get_utils/src/platform/platform.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
-import 'package:sholat/app/utils/notification_helper.dart';
-
+import 'package:adhan/adhan.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:sholat/app/utils/logger.dart';
+import '../services/notification_service.dart';
 import '../helpers/notification_scheduler.dart';
 
 class NotificationController {
   static const int dummyNotificationId = 999999;
 
-  @pragma('vm:entry-point')
+  /// Dipanggil di main untuk set listener yang valid saat app hidup
   static Future<void> initialize() async {
-    await AwesomeNotifications().initialize(null, [
-      NotificationChannel(
-        channelKey: 'prayer_time_channel',
-        channelName: 'Jadwal Sholat',
-        channelDescription: 'Notifikasi waktu sholat harian',
-        importance: NotificationImportance.High,
-      ),
-    ], debug: true);
-
-    /*  AwesomeNotifications().setListeners(
-      onActionReceivedMethod: onActionReceivedMethod,
-    ); */
+    await NotificationService().initialize();
   }
 
-  @pragma("vm:entry-point")
-  static Future<void> onActionReceivedMethod(
-    ReceivedAction receivedAction,
-  ) async {
-    print(
-      '🔔 Notifikasi diterima: ${receivedAction.channelKey} | ID: ${receivedAction.id}',
-    );
-    print(
-      '===> [onActionReceivedMethod] DIPANGGIL: channel=${receivedAction.channelKey}, id=${receivedAction.id}',
-    );
-
-    if (receivedAction.id == dummyNotificationId &&
-        receivedAction.channelKey == 'prayer_time_channel') {
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final lastScheduled = prefs.getString('last_scheduled_date');
-
-      if (lastScheduled != today) {
-        print('✅ Belum dijadwalkan hari ini ➜ menjadwalkan ulang...');
-        await NotificationController.performReschedule();
-      } else {
-        print('⏭️ Sudah dijadwalkan hari ini ($today), skip reschedule.');
-      }
-    }
-  }
-
-  @pragma("vm:entry-point")
-  static Future<void> onNotificationDisplayedMethod(
-    ReceivedNotification notif,
-  ) async {
-    print(
-      '🔔 Notifikasi ditampilkan: id=${notif.id}, channel=${notif.channelKey}, title=${notif.title}',
-    );
-
-    if (notif.id == dummyNotificationId &&
-        notif.channelKey == 'prayer_time_channel') {
-      print('🕐 Dummy notification displayed ➜ Triggering reschedule check...');
-
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final lastScheduled = prefs.getString('last_scheduled_date');
-
-      if (lastScheduled != today) {
-        print('✅ Belum dijadwalkan hari ini ➜ menjadwalkan ulang...');
-        await NotificationController.performReschedule();
-      } else {
-        print('⏭️ Sudah dijadwalkan hari ini ($today), skip reschedule.');
-      }
-    }
-  }
-
-  @pragma("vm:entry-point")
-  static Future<void> onDismissActionReceivedMethod(
-    ReceivedNotification receivedNotification,
-  ) async {
-    print('Notification dismissed: ${receivedNotification.id}');
-  }
-
-  // PENTING: Pindahkan semua logika fetching & scheduling ke sini
-  @pragma("vm:entry-point")
-  static Future<void> performReschedule() async {
+  /// Dipanggil baik di FG maupun di BG
+  @pragma('vm:entry-point')
+  static Future<void> performReschedule({bool background = false}) async {
     try {
-      await cancelAllPrayerNotifications();
-      // 1. Dapatkan posisi saat ini secara mandiri
+      final prefs = await SharedPreferences.getInstance();
 
-      // Tentukan pengaturan akurasi yang disesuaikan untuk Android atau platform lainnya.
-      final LocationSettings locationSettings = (GetPlatform.isAndroid)
-          ? AndroidSettings(
-              accuracy: LocationAccuracy.best,
-              distanceFilter: 0,
-              forceLocationManager: true,
-              intervalDuration: const Duration(seconds: 10),
-            )
-          : AppleSettings(
-              accuracy: LocationAccuracy.best,
-              activityType: ActivityType.other,
-              distanceFilter: 0,
-              pauseLocationUpdatesAutomatically: true,
-              showBackgroundLocationIndicator: false,
-            );
-      // Dapatkan posisi saat ini menggunakan settings baru
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
-      );
+      final lat = prefs.getDouble('last_lat');
+      final lon = prefs.getDouble('last_lon');
 
-      // 2. Hitung waktu sholat secara mandiri
+      if (lat == null || lon == null) {
+        logWarning(
+          'performReschedule: no cached location available, skipping. (background=$background)',
+        );
+        return;
+      }
+
       final prayerTimesResult = PrayerTimes(
-        Coordinates(position.latitude, position.longitude),
+        Coordinates(lat, lon),
         DateComponents.from(DateTime.now()),
         CalculationMethod.muslim_world_league.getParameters()
           ..madhab = Madhab.shafi,
       );
 
-      // 3. Buat daftar waktu sholat
       final newPrayerTimes = [
         PrayerTime(id: 1, name: 'Subuh', dateTime: prayerTimesResult.fajr),
         PrayerTime(id: 2, name: 'Dzuhur', dateTime: prayerTimesResult.dhuhr),
@@ -136,11 +49,9 @@ class NotificationController {
         PrayerTime(id: 5, name: 'Isya', dateTime: prayerTimesResult.isha),
       ];
 
-      // 4. Dapatkan preferensi notifikasi secara mandiri dari SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final storedPrefs = prefs.getString('prayerNotifPrefs');
-      final Map<String, bool> notificationPrefs = storedPrefs != null
-          ? Map<String, bool>.from(jsonDecode(storedPrefs))
+      final stored = prefs.getString('prayerNotifPrefs');
+      final Map<String, bool> notificationPrefs = stored != null
+          ? Map<String, bool>.from(jsonDecode(stored))
           : {
               'Subuh': true,
               'Terbit Matahari': false,
@@ -150,28 +61,30 @@ class NotificationController {
               'Isya': true,
             };
 
-      // 5. Panggil fungsi penjadwalan notifikasi dengan argumen yang lengkap
+      await cancelAllPrayerNotifications();
+
       await schedulePrayerNotificationsWithCatchup(
         newPrayerTimes,
         notificationPrefs,
       );
-      await markTodayAsScheduled();
 
-      print('✅ Penjadwalan ulang notifikasi berhasil.');
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await prefs.setString('last_scheduled_date', today);
+
+      logSuccess('performReschedule done (background=$background)');
     } catch (e) {
-      print('❌ Gagal menjadwalkan ulang: $e');
+      logError('performReschedule failed: $e');
     }
   }
 }
 
 Future<void> cancelAllPrayerNotifications() async {
-  // Membatalkan semua notifikasi dengan channel prayer_time_channel
-  List<NotificationModel> scheduled = await AwesomeNotifications()
-      .listScheduledNotifications();
-  for (var notif in scheduled) {
-    if (notif.content?.channelKey == 'prayer_time_channel') {
-      await AwesomeNotifications().cancel(notif.content!.id!);
+  final plugin = FlutterLocalNotificationsPlugin();
+  final pending = await plugin.pendingNotificationRequests();
+  for (var notif in pending) {
+    if (notif.id != NotificationController.dummyNotificationId) {
+      await plugin.cancel(notif.id);
     }
   }
-  print('🔄 Semua notifikasi jadwal sebelumnya telah dibatalkan.');
+  print('🔄 All old prayer notifications cancelled');
 }

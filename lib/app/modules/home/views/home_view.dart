@@ -1,12 +1,10 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
-//import 'package:sholat/app/utils/notification_helper.dart'; // pastikan path sesuai (untuk test)
-
 import 'package:get/get.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
-//import 'package:sholat/main.dart'; // <==== Test manula notifikasi dari home (works)
+import 'package:sholat/app/utils/logger.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -95,7 +93,7 @@ class HomeView extends GetView<HomeController> {
           Obx(
             () => controller.selectedIndex == 0
                 ? IconButton(
-                    onPressed: () => prayerTimesController.fetchPrayerTimes(),
+                    onPressed: () => prayerTimesController.loadPrayerTimes(),
                     icon: const Icon(Icons.refresh),
                   )
                 : const SizedBox.shrink(),
@@ -108,7 +106,7 @@ class HomeView extends GetView<HomeController> {
           prayerTimesController.currentActivePrayer.value,
           0.35,
         );
-        print(
+        logSuccess(
           ' Prayer Name Value : ${prayerTimesController.currentActivePrayer.value}',
         );
 

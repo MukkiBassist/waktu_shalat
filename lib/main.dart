@@ -1,114 +1,99 @@
-// main.dart (versi final aman)
+// lib/main.dart
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
-import 'package:sholat/app/theme/theme_controller.dart';
-import 'package:sholat/app/utils/notification_controller.dart';
+import 'package:sholat/app/utils/logger.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:workmanager/workmanager.dart';
-import 'app/routes/app_pages.dart';
 
+import 'package:sholat/app/services/notification_service.dart';
+import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
+import 'package:sholat/app/modules/settings/controllers/settings_controller.dart';
+import 'package:sholat/app/theme/theme_controller.dart';
+import 'app/routes/app_pages.dart';
+import 'app/utils/permission_helper.dart';
+
+const String workManagerTaskReschedule = 'reschedulePrayerNotifications';
+
+/// Setup timezone agar sesuai lokasi perangkat
 Future<void> setupTimeZone() async {
   tz.initializeTimeZones();
-  final String timeZoneName = await AwesomeNotifications()
-      .getLocalTimeZoneIdentifier();
-  tz.setLocalLocation(tz.getLocation(timeZoneName));
-  print('TimeZone set to: $timeZoneName');
+  try {
+    tz.setLocalLocation(tz.getLocation(tz.local.name));
+  } catch (_) {}
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await setupTimeZone();
-  await initializeDateFormatting('id', null);
-  await AndroidAlarmManager.initialize();
-  await Workmanager().initialize(callbackDispatcher);
-
-  await Workmanager().registerPeriodicTask(
-    "reschedulePrayerNotifications",
-    "reschedulePrayerNotifications",
-    frequency: const Duration(days: 1),
-    initialDelay: getInitialDelayToNextMidnight(),
-  );
-
-  await AndroidAlarmManager.periodic(
-    const Duration(hours: 24),
-    1001,
-    androidAlarmRescheduler,
-    startAt: DateTime.now().add(getInitialDelayToNextMidnight()),
-    exact: true,
-    wakeup: true,
-  );
-
-  await AwesomeNotifications().initialize(null, [
-    NotificationChannel(
-      channelKey: 'prayer_time_channel',
-      channelName: 'Prayer Notifications',
-      channelDescription: 'Notification for daily prayer times',
-      importance: NotificationImportance.Max,
-      playSound: true,
-      enableVibration: true,
-      enableLights: true,
-      channelShowBadge: true,
-      defaultColor: const Color(0xFF2196f3),
-      ledColor: const Color(0xFFFFFFFF),
-      locked: true,
-    ),
-  ], debug: true);
-
-  AwesomeNotifications().setListeners(
-    onActionReceivedMethod: NotificationController.onActionReceivedMethod,
-    onNotificationDisplayedMethod:
-        NotificationController.onNotificationDisplayedMethod,
-    onDismissActionReceivedMethod:
-        NotificationController.onDismissActionReceivedMethod,
-  );
-
-  Get.put(PrayerTimesController());
-  Get.put(ThemeController());
-  await Get.find<ThemeController>().loadTheme();
-
-  runApp(const MyApp());
-}
-
-void androidAlarmRescheduler() async {
-  print(
-    '===> AndroidAlarmManager trigger: Rescheduling prayer notifications (background)',
-  );
-  // Pastikan AwesomeNotifications & plugin diinisialisasi di isolate ini:
-  await NotificationController.initialize();
-  await NotificationController.performReschedule();
-}
-
-//callbackDispatcher untuk Workmanager:
+/// Callback untuk Workmanager (background task)
+@pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    print('===> Workmanager callback terpanggil: $task');
-    await NotificationController.initialize();
-    await NotificationController.performReschedule();
+    WidgetsFlutterBinding.ensureInitialized();
+    await setupTimeZone();
+
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    await notificationService.performReschedule();
+
     return Future.value(true);
   });
 }
 
-Duration getInitialDelayToNextMidnight() {
+// Fungsi inisialisasi terpusat
+Future<void> initDependencies() async {
+  // Inisialisasi service
+  logInfo('Inisialisasi service...');
+  await NotificationService().initialize();
+  await setupTimeZone();
+  await initializeDateFormatting('id', null);
+
+  // Inisialisasi controller
+  logInfo('Inisialisasi controller...');
+  Get.put(SettingsController());
+  await Get.find<SettingsController>().loadSettings();
+
+  Get.put(PrayerTimesController());
+  Get.put(ThemeController());
+  await Get.find<ThemeController>().loadTheme();
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Workmanager().initialize(callbackDispatcher);
+
+  // Inisialisasi
+  await initDependencies();
+
+  // Setup Workmanager untuk penjadwalan ulang harian
+  await Workmanager().registerPeriodicTask(
+    "reschedule_task_id",
+    workManagerTaskReschedule,
+    frequency: const Duration(days: 1),
+    initialDelay: _initialDelayToNextMidnight(),
+  );
+
+  // Cek izin setelah semua dependensi diinisialisasi
+  await checkAllPermissions();
+
+  runApp(const MyApp());
+}
+
+/// Hitung delay ke tengah malam berikutnya
+Duration _initialDelayToNextMidnight() {
   final now = DateTime.now();
   final next = DateTime(
     now.year,
     now.month,
     now.day,
-  ).add(const Duration(days: 1, minutes: 5));
+  ).add(const Duration(days: 1, minutes: 1));
+  logInfo('Initial delay to next midnight: $next');
   return next.difference(now);
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     final themeController = Get.find<ThemeController>();

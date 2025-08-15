@@ -1,12 +1,14 @@
 // lib/app/modules/splash/controllers/splash_controller.dart
-
 // ignore_for_file: avoid_print
 
 import 'package:get/get.dart';
 import 'package:sholat/app/routes/app_pages.dart';
 import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_controller.dart';
-import 'package:sholat/app/utils/permission_helper.dart';
+import 'package:sholat/app/services/prayer_cache_service.dart';
+import 'package:sholat/app/utils/logger.dart';
 import 'package:sholat/app/utils/notification_helper.dart';
+//import 'package:sholat/app/utils/permission_helper.dart';
+import 'package:sholat/app/utils/notification_controller.dart';
 
 class SplashController extends GetxController {
   @override
@@ -15,38 +17,35 @@ class SplashController extends GetxController {
     _initializeAndNavigate();
   }
 
-  void _initializeAndNavigate() async {
-    final controller = Get.find<PrayerTimesController>();
-
+  Future<void> _initializeAndNavigate() async {
+    final prayerController = Get.find<PrayerTimesController>();
+    final cacheService = PrayerCacheService();
+    final needsUpdate = await cacheService.isCacheExpired();
     try {
-      // 1. Meminta izin lokasi dan layanan lokasi terlebih dahulu
-      print('SplashController: Meminta izin lokasi...');
-      await controller.requestLocationPermission();
+      //1. Memeriksa apakah cache sholat perlu diperbarui
+      logInfo('SplashController: Memeriksa cache sholat...');
+      if (needsUpdate) {
+        await cacheService.fetchAndCachePrayerTimes();
+      }
 
-      // 2. Kemudian, meminta semua izin notifikasi
-      print('SplashController: Memeriksa dan meminta izin notifikasi...');
-      await checkAllNotificationPermissions();
+      // 2. Memuat data sholat (sekalian minta izin lokasi di dalamnya)
+      logInfo('SplashController: Memuat data sholat dan lokasi...');
+      await prayerController.loadPrayerTimes();
 
-      // 3. Setelah semua izin diberikan, baru memuat data sholat dan lokasi
-      print('SplashController: Memuat data sholat dan lokasi...');
-      await controller.fetchPrayerTimes();
-
-      // 4. Menjadwalkan notifikasi harian dummy (pukul 00:01)
-      print('SplashController: Menjadwalkan notifikasi dummy harian...');
-      await scheduleDailyRescheduler();
-
-      // 5. Memastikan notifikasi sholat hari ini dijadwalkan (jika belum)
+      // 3. Memastikan notifikasi sholat hari ini dijadwalkan
       print('SplashController: Memeriksa penjadwalan hari ini...');
-      await handleRescheduleIfNeeded();
+      final alreadyScheduled = await checkIfTodayScheduled();
+      if (!alreadyScheduled) {
+        await NotificationController.performReschedule();
+      }
 
-      print('SplashController: Semua inisialisasi berhasil.');
+      logSuccess('SplashController: Semua inisialisasi berhasil.');
     } catch (e) {
-      print('SplashController: Inisialisasi gagal: $e');
-      // Anda bisa menampilkan error di UI atau mencoba lagi
+      print('❌ SplashController: Inisialisasi gagal: $e');
     }
 
-    // Pindah ke halaman utama setelah semua selesai
-    await Future.delayed(const Duration(seconds: 1));
+    // 4. Navigasi ke halaman utama
+    await Future.delayed(const Duration(seconds: 2));
     Get.offAllNamed(Routes.HOME);
   }
 }
