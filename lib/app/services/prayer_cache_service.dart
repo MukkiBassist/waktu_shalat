@@ -13,7 +13,8 @@ class PrayerCacheService {
   static const _cacheKey = 'prayer_times_cache';
   static const _expiryKey = 'prayer_times_expiry';
 
-  /// is cache expired or absent
+  /// Cek apakah cache sudah kadaluarsa.
+  /// Menggunakan SharedPreferences untuk menyimpan dan mengambil data
   Future<bool> isCacheExpired() async {
     final prefs = await SharedPreferences.getInstance();
     final expiryString = prefs.getString(_expiryKey);
@@ -23,7 +24,7 @@ class PrayerCacheService {
     return DateTime.now().isAfter(expiryDate);
   }
 
-  /// fetch via service and save. Also schedules notifications for all days fetched.
+  /// Ambil dan cache jadwal sholat
   Future<void> fetchAndCachePrayerTimes() async {
     final settings = Get.find<SettingsController>();
     final days = settings.cacheDays.value;
@@ -32,7 +33,7 @@ class PrayerCacheService {
     final service = PrayerTimesService();
     final items = await service.fetchPrayerTimesForDays(days);
 
-    // convert to simple json list grouped per day
+    // konversi ke format yang akan disimpan
     final Map<String, Map<String, String>> perDay = {};
     for (var item in items) {
       final dayKey = DateTime(
@@ -65,6 +66,7 @@ class PrayerCacheService {
     logSuccess('✅ Cached prayer times for $days days until $expiryDate');
   }
 
+  /// Jadwalkan notifikasi untuk semua waktu sholat yang ada di cache
   Future<void> _scheduleAllPrayerNotifications(
     List<Map<String, dynamic>> prayerTimes,
   ) async {
@@ -99,7 +101,8 @@ class PrayerCacheService {
     }
   }
 
-  // Get cached prayer times
+  /// Ambil jadwal sholat dari cache.
+  /// Mengembalikan null jika tidak ada cache
   Future<List<Map<String, dynamic>>?> getCachedPrayerTimes() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString(_cacheKey);
@@ -109,16 +112,22 @@ class PrayerCacheService {
     return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
+  /// Set jumlah hari untuk cache
   Future<void> setCacheDays(int days) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('prayer_cache_days', days);
   }
 
+  /// Get jumlah hari untuk cache
+  /// Default is 3 days if not set
   Future<int> getCacheDays() async {
     final prefs = await SharedPreferences.getInstance();
+
     return prefs.getInt('prayer_cache_days') ?? 3;
   }
 
+  /// SImpan jadwal sholat ke cache dengan masa berlaku
+  /// days: jumlah hari sebelum cache dianggap kadaluarsa
   Future<void> savePrayerTimesToCache(
     // Save a list of prayer times to cache with expiry
     List<Map<String, dynamic>> prayerTimes,

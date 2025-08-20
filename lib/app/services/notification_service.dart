@@ -41,7 +41,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (resp) async {
-        print('Notification tapped id=${resp.id}, payload=${resp.payload}');
+        logInfo('Notification tapped id=${resp.id}, payload=${resp.payload}');
         // handle action payloads:
         // payload = 'refresh' -> refetch & reschedule
         if (resp.payload == 'refresh') {
@@ -72,7 +72,7 @@ class NotificationService {
         ?.createNotificationChannel(androidChannel);
 
     _initialized = true;
-    print('✅ NotificationService initialized');
+    logSynced('✅ NotificationService initialized');
   }
 
   Future<void> schedulePrayerNotification({
@@ -105,7 +105,7 @@ class NotificationService {
 
   Future<void> performReschedule() async {
     try {
-      print('⏳ NotificationService.performReschedule start');
+      logLoading('NotificationService.performReschedule start');
       // cancel previously scheduled notifications (we cancel all for simplicity)
       await _cancelAllPrayerNotifications();
 
@@ -115,7 +115,7 @@ class NotificationService {
       final lon = prefs.getDouble('last_lon');
 
       if (lat == null || lon == null) {
-        print('No cached coords available for reschedule');
+        logWarning('No cached coords available for reschedule');
         return;
       }
 
@@ -160,7 +160,7 @@ class NotificationService {
       await markTodayAsScheduled();
       logSuccess('performReschedule done');
     } catch (e) {
-      print('❌ performReschedule failed: $e');
+      logError('❌ performReschedule failed: $e');
     }
   }
 
@@ -170,6 +170,6 @@ class NotificationService {
     for (var p in pending) {
       await _flutterLocalNotificationsPlugin.cancel(p.id);
     }
-    print('🔄 All pending notifications cancelled');
+    logInfo('All pending notifications cancelled');
   }
 }

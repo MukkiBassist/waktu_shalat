@@ -6,6 +6,7 @@ import 'package:adhan/adhan.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'dart:math';
 import 'package:sholat/app/services/location_service.dart';
+import 'package:sholat/app/utils/logger.dart';
 
 class QiblaController extends GetxController {
   final LocationService _locationService = LocationService();
@@ -52,7 +53,7 @@ class QiblaController extends GetxController {
       errorMessage(
         'Terjadi Kesalahan saat menginisialisasi Qibla: ${e.toString()}',
       );
-      print('Error Qibla Controller : $e');
+      logError('Error Qibla Controller : $e');
     } finally {
       isLoading(false);
     }

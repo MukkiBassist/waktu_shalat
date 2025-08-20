@@ -7,6 +7,7 @@ import 'package:sholat/app/modules/dzikir/views/dzikir_view.dart';
 import 'package:sholat/app/modules/prayer_times/views/prayer_times_view.dart';
 import 'package:sholat/app/modules/qibla/views/qibla_view.dart';
 import 'package:sholat/app/modules/settings/views/settings_view.dart';
+import 'package:sholat/app/utils/logger.dart';
 import 'package:sholat/app/utils/permission_helper.dart';
 
 class HomeController extends GetxController {
@@ -28,7 +29,7 @@ class HomeController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    print('onReady requestExactAlarmPermissionOnce');
+    logInfo('onReady requestExactAlarmPermissionOnce');
     requestExactAlarmPermissionOnce();
   }
 }

@@ -16,61 +16,6 @@ class PrayerTimeItem {
 
 class PrayerTimesService {
   final LocationService _locationService = LocationService();
-  //final PrayerCacheService _cacheService = PrayerCacheService();
-
-  /* /// Ambil jadwal sholat dari lokasi user, simpan ke cache, lalu jadwalkan notifikasi
-  Future<void> fetchAndCachePrayerTimes() async {
-    try {
-      // 1️⃣ Ambil lokasi dari LocationService
-      final position = await _locationService.getCurrentLocation();
-      if (position == null) {
-        throw Exception("Gagal mendapatkan lokasi pengguna");
-      }
-
-      final myCoordinates = Coordinates(position.latitude, position.longitude);
-
-      // 2️⃣ Tentukan parameter perhitungan (contoh: Muslim World League)
-      final params = CalculationMethod.muslim_world_league.getParameters();
-      params.madhab = Madhab.shafi;
-
-      // 3️⃣ Hitung jadwal sholat
-      final prayerTimes = PrayerTimes.today(myCoordinates, params);
-
-      // 4️⃣ Konversi ke List Map untuk disimpan
-      final prayerTimesList = [
-        {"name": "Subuh", "time": prayerTimes.fajr.toLocal()},
-        {"name": "Matahari Terbit", "time": prayerTimes.sunrise.toLocal()},
-        {"name": "Dzuhur", "time": prayerTimes.dhuhr.toLocal()},
-        {"name": "Ashar", "time": prayerTimes.asr.toLocal()},
-        {"name": "Maghrib", "time": prayerTimes.maghrib.toLocal()},
-        {"name": "Isya", "time": prayerTimes.isha.toLocal()},
-      ];
-
-      // 5️⃣ Ambil lama cache (default 3 hari jika belum di-set user)
-      final cacheDays = await _cacheService.getCacheDays();
-
-      // 6️⃣ Simpan ke cache
-      await _cacheService.savePrayerTimesToCache(prayerTimesList, cacheDays);
-
-      // 7️⃣ Jadwalkan notifikasi untuk setiap waktu sholat
-      for (var prayer in prayerTimesList) {
-        final prayerName = prayer['name']!;
-        final time = prayer['time']! as DateTime;
-
-        await NotificationService().schedulePrayerNotification(
-          id: prayerName.hashCode, // unik per nama
-          title: 'Waktu Sholat',
-          body: 'Sekarang waktunya sholat $prayerName',
-          dateTime: time,
-          payload: 'prayer_$prayerName',
-        );
-      }
-
-      print("✅ Jadwal sholat berhasil diambil dan disimpan.");
-    } catch (e) {
-      print("❌ Gagal mengambil jadwal sholat: $e");
-    }
-  } */
 
   Future<List<PrayerTimeItem>> fetchPrayerTimesForDays(int days) async {
     final position = await _locationService.getCurrentLocation();

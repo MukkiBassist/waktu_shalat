@@ -33,7 +33,7 @@ class SplashController extends GetxController {
       await prayerController.loadPrayerTimes();
 
       // 3. Memastikan notifikasi sholat hari ini dijadwalkan
-      print('SplashController: Memeriksa penjadwalan hari ini...');
+      logLoading('SplashController: Memeriksa penjadwalan hari ini...');
       final alreadyScheduled = await checkIfTodayScheduled();
       if (!alreadyScheduled) {
         await NotificationController.performReschedule();
@@ -41,7 +41,7 @@ class SplashController extends GetxController {
 
       logSuccess('SplashController: Semua inisialisasi berhasil.');
     } catch (e) {
-      print('❌ SplashController: Inisialisasi gagal: $e');
+      logError('SplashController: Inisialisasi gagal: $e');
     }
 
     // 4. Navigasi ke halaman utama

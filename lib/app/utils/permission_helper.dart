@@ -19,9 +19,6 @@ Future<void> checkAllPermissions() async {
   await Future.delayed(Duration(seconds: 2));
   logPermission('Meminta izin notifikasi...');
   _requestNotificationPermission();
-  /* await Future.delayed(Duration(seconds: 3));
-  requestExactAlarmPermissionOnce();
-  print('✅ Semua izin penting telah diperiksa dan diminta.'); */
 }
 
 /// Meminta izin lokasi (digunakan oleh Geolocator)
@@ -100,7 +97,7 @@ Future<void> _requestNotificationPermission() async {
   if (!status.isGranted) {
     final newStatus = await Permission.notification.request();
     if (!newStatus.isGranted) {
-      logWarning('⚠️ Izin notifikasi ditolak.');
+      logPermission('Izin notifikasi ditolak.');
       //minta kembali
       await Permission.notification.request();
     }

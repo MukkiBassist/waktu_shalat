@@ -86,5 +86,5 @@ Future<void> cancelAllPrayerNotifications() async {
       await plugin.cancel(notif.id);
     }
   }
-  print('🔄 All old prayer notifications cancelled');
+  logSynced('All old prayer notifications cancelled');
 }

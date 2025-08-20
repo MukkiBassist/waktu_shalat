@@ -3,6 +3,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sholat/app/utils/logger.dart';
 
 class DzikirController extends GetxController {
   var selectedDzikir = 'Sholallahu ala Muhammad'.obs;
@@ -35,9 +36,9 @@ class DzikirController extends GetxController {
       await _player.seek(Duration.zero);
       await _player.resume();
       //await cache.load('click.wav'); // ini otomatis cache dan main cepat
-      print("Berhasil play suara");
+      logSuccess("Berhasil play suara");
     } catch (e) {
-      print("Gagal play suara: $e");
+      logError("Gagal play suara: $e");
     }
   }
 
