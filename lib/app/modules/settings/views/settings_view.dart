@@ -8,13 +8,15 @@ import '../../../services/prayer_cache_service.dart';
 class SettingsView extends StatelessWidget {
   final ThemeController themeController = Get.find();
   final SettingsController controller = Get.find();
-  final PrayerCacheService prayerCacheService = Get.find();
+  //final PrayerCacheService prayerCacheService = Get.find();
+  final PrayerCacheService prayerCacheService = PrayerCacheService();
 
   SettingsView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -60,7 +62,8 @@ class SettingsView extends StatelessWidget {
                         }
                         // Update cache days in SettingsController
                         controller.updateCacheDays(days);
-                        await prayerCacheService.fetchAndCachePrayerTimes();
+                        await prayerCacheService
+                            .loadPrayerTimesAndSavetoCache();
                         logSuccess('Cache days updated to $days');
                         Get.snackbar(
                           "Berhasil",

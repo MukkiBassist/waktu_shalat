@@ -52,134 +52,123 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      /* floatingActionButton: FloatingActionButton( // <== ini untuk test
-        onPressed: () {
-          showInstantPrayerNotification(
-            "Uji Notifikasi",
-            "Ini adalah notifikasi uji coba.",
-          );
-        },
-        tooltip: 'Tes Notifikasi',
-        child: Icon(Icons.notifications),
-      ), */
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /* ElevatedButton(    // <==========  untuk test notifikasi (works) 
-              onPressed: () {
-                showNotification(
-                  title: 'Tes Manual',
-                  body: 'Ini notifikasi muncul!',
-                );
-              },
-              child: Text("Tes Notifikasi"),
-            ), */
-            Text(
-              'Waktu Sholat & Tasbih',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'By Mukki Natapradja Project',
-              style: TextStyle(
-                fontSize: 11,
-                color: Color.fromARGB(179, 79, 79, 79),
+    return Obx(() {
+      final prayerName = prayerTimesController.currentActivePrayer.value;
+      final auraColor = getAuraColor(prayerName, 0.35);
+
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: auraColor,
+          elevation: 5,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Waktu Sholat & Tasbih',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          Obx(
-            () => controller.selectedIndex == 0
-                ? IconButton(
-                    onPressed: () => prayerTimesController.loadPrayerTimes(),
-                    icon: const Icon(Icons.refresh),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-
-      body: Obx(() {
-        final auraColor = getAuraColor(
-          prayerTimesController.currentActivePrayer.value,
-          0.35,
-        );
-        logSuccess(
-          ' Prayer Name Value : ${prayerTimesController.currentActivePrayer.value}',
-        );
-
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 380),
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            final offsetAnimation =
-                Tween<Offset>(
-                  begin: const Offset(1.0, 0.0),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-            );
-
-            return FadeTransition(
-              opacity: fadeTween,
-              child: SlideTransition(position: offsetAnimation, child: child),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(controller.selectedIndex),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.topCenter,
-                  radius: MediaQuery.of(context).size.aspectRatio > 0.5
-                      ? 1.5
-                      : 2.0,
-
-                  colors: [auraColor, Colors.transparent],
+              Text(
+                'By Mukki Natapradja Project',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color.fromARGB(179, 79, 79, 79),
                 ),
               ),
-              child: controller.pages[controller.selectedIndex],
-            ),
+            ],
           ),
-        );
-      }),
-
-      //Obx(() => controller.pages[controller.selectedIndex]),
-      bottomNavigationBar: Obx(
-        () => SalomonBottomBar(
-          currentIndex: controller.selectedIndex,
-          onTap: controller.onItemTapped,
-          items: [
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.access_time),
-              title: const Text('Sholat'),
-              selectedColor: Colors.deepPurple,
-            ),
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.auto_awesome),
-              title: Text('Dzikir'),
-              selectedColor: Colors.orange,
-            ),
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.explore),
-              title: Text('Qibla'),
-              selectedColor: Colors.teal,
-            ),
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.settings),
-              title: const Text('Pengaturan'),
-              selectedColor: Colors.blueGrey,
+          actions: [
+            Obx(
+              () => controller.selectedIndex == 0
+                  ? IconButton(
+                      onPressed: () =>
+                          prayerTimesController.refreshPrayerTimes(),
+                      icon: const Icon(Icons.refresh),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ],
         ),
-      ),
-    );
+
+        body: Obx(() {
+          final auraColor = getAuraColor(
+            prayerTimesController.currentActivePrayer.value,
+            0.35,
+          );
+          logSuccess(
+            ' Prayer Name Value : ${prayerTimesController.currentActivePrayer.value}',
+          );
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 380),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              final offsetAnimation =
+                  Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  );
+              final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              );
+
+              return FadeTransition(
+                opacity: fadeTween,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: KeyedSubtree(
+              key: ValueKey<int>(controller.selectedIndex),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topCenter,
+                    radius: MediaQuery.of(context).size.aspectRatio > 0.5
+                        ? 1.5
+                        : 2.0,
+
+                    colors: [auraColor, Colors.transparent],
+                  ),
+                ),
+                child: controller.pages[controller.selectedIndex],
+              ),
+            ),
+          );
+        }),
+
+        //Obx(() => controller.pages[controller.selectedIndex]),
+        bottomNavigationBar: Obx(
+          () => SalomonBottomBar(
+            currentIndex: controller.selectedIndex,
+            onTap: controller.onItemTapped,
+            items: [
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.access_time),
+                title: const Text('Sholat'),
+                selectedColor: Colors.deepPurple,
+              ),
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.auto_awesome),
+                title: Text('Dzikir'),
+                selectedColor: Colors.orange,
+              ),
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.explore),
+                title: Text('Qibla'),
+                selectedColor: Colors.teal,
+              ),
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.settings),
+                title: const Text('Pengaturan'),
+                selectedColor: Colors.blueGrey,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }

@@ -7,7 +7,9 @@ import 'package:lottie/lottie.dart';
 import '../controllers/prayer_times_controller.dart';
 
 class PrayerTimesView extends GetView<PrayerTimesController> {
-  const PrayerTimesView({super.key});
+  // Tambahkan properti untuk menerima warna dari HomeView
+  final Color activePrayerColor;
+  const PrayerTimesView({super.key, required this.activePrayerColor});
 
   // Menentukan animasi Lottie berdasarkan nama sholat
   String getLottieAsset(String prayerName) {
@@ -47,6 +49,8 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
     final RxBool isExpanded = true.obs;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
+
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoading.value) {
@@ -67,7 +71,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () => controller.loadPrayerTimes(),
+                      onPressed: () => controller.refreshPrayerTimes(),
                       child: const Text('Silahkan coba lagi'),
                     ),
                   ],
@@ -151,12 +155,8 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                         margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.black.withValues(
-                                  alpha: 0.6,
-                                ) //withOpacity(0.6)
-                              : Colors.white.withValues(
-                                  alpha: 0.85,
-                                ), //withOpacity(0.85),
+                              ? Colors.black.withValues(alpha: 0.6)
+                              : Colors.white.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isDark
@@ -248,14 +248,6 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                           physics: const NeverScrollableScrollPhysics(),
                           padding: EdgeInsets.zero,
 
-                          // Perbaikan di sini: gunakan entries untuk mendapatkan key-value pair
-                          /* itemCount: controller.prayerTimes.length,
-                          itemBuilder: (_, index) {
-                            final prayer = controller.prayerTimes[index];
-                            final isCurrent =
-                                controller.currentActivePrayer.value ==
-                                prayer.name; */
-                          // End of Perbaikan
                           itemCount: controller.prayerTimes.length,
                           itemBuilder: (_, index) {
                             // Akses entri Map menggunakan index

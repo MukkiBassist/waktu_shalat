@@ -4,7 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:sholat/app/services/prayer_cache_service.dart';
 import 'package:sholat/app/utils/logger.dart';
+//import 'package:sholat/app/utils/permission_helper.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
@@ -14,7 +16,7 @@ import 'package:sholat/app/modules/prayer_times/controllers/prayer_times_control
 import 'package:sholat/app/modules/settings/controllers/settings_controller.dart';
 import 'package:sholat/app/theme/theme_controller.dart';
 import 'app/routes/app_pages.dart';
-import 'app/utils/permission_helper.dart';
+//import 'app/utils/permission_helper.dart';
 
 const String workManagerTaskReschedule = 'reschedulePrayerNotifications';
 
@@ -33,13 +35,53 @@ void callbackDispatcher() {
     WidgetsFlutterBinding.ensureInitialized();
     await setupTimeZone();
 
+    final cacheService = PrayerCacheService();
+    final notificationService = NotificationService();
+
+    // Inisialisasi service yang dibutuhkan di background
+    await notificationService.initialize();
+
+    try {
+      logInfo('⚙️ WorkManager: Memulai tugas harian...');
+      final isCacheExpired = await cacheService.isCacheExpired();
+
+      if (isCacheExpired) {
+        logWarning(
+          'WorkManager: Cache kadaluarsa atau tidak ada. Memperbarui data dari jaringan...',
+        );
+        // Ambil data terbaru dari jaringan dan simpan ke cache
+        await cacheService.loadPrayerTimesAndSavetoCache();
+      } else {
+        logSuccess(
+          'WorkManager: Cache masih valid. Menggunakan data yang ada.',
+        );
+        // Tidak perlu melakukan apa-apa karena data di cache sudah cukup
+      }
+
+      // Jadwalkan ulang semua notifikasi berdasarkan data yang ada di cache
+      await notificationService.performReschedule();
+
+      logSuccess('WorkManager: Tugas harian berhasil diselesaikan.');
+      return Future.value(true);
+    } catch (e) {
+      logError('WorkManager: Tugas gagal: $e');
+      return Future.value(false);
+    }
+  });
+}
+/* @pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await setupTimeZone();
+
     final notificationService = NotificationService();
     await notificationService.initialize();
     await notificationService.performReschedule();
 
     return Future.value(true);
   });
-}
+} */
 
 // Fungsi inisialisasi terpusat
 Future<void> initDependencies() async {
@@ -62,26 +104,45 @@ Future<void> initDependencies() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Workmanager().initialize(callbackDispatcher);
-
+  // Cek izin setelah semua dependensi diinisialisasi
+  //await checkAllPermissions();
   // Inisialisasi
+  // Hapus semua task yang sudah terdaftar sebelumnya
+  await Workmanager().cancelAll();
   await initDependencies();
 
   // Setup Workmanager untuk penjadwalan ulang harian
   await Workmanager().registerPeriodicTask(
-    "reschedule_task_id",
-    workManagerTaskReschedule,
+    "daily_update_and_reschedule_task",
+    "daily_prayer_update_reschedule",
     frequency: const Duration(days: 1),
     initialDelay: _initialDelayToNextMidnight(),
+    constraints: Constraints(networkType: NetworkType.connected),
   );
-
-  // Cek izin setelah semua dependensi diinisialisasi
-  await checkAllPermissions();
 
   runApp(const MyApp());
 }
 
 /// Hitung delay ke tengah malam berikutnya
 Duration _initialDelayToNextMidnight() {
+  final now = DateTime.now();
+  // set ke tengah malam besok + 1 menit (00:01)
+  final nextMidnight = DateTime(
+    now.year,
+    now.month,
+    now.day,
+    0,
+    1,
+  ).add(const Duration(days: 1));
+  final delay = nextMidnight.difference(now);
+
+  logInfo(
+    'Initial delay to next midnight (00:01): $nextMidnight. Delay: $delay',
+  );
+
+  return delay;
+}
+/* Duration _initialDelayToNextMidnight() {
   final now = DateTime.now();
   final next = DateTime(
     now.year,
@@ -90,7 +151,7 @@ Duration _initialDelayToNextMidnight() {
   ).add(const Duration(days: 1, minutes: 1));
   logInfo('Initial delay to next midnight: $next');
   return next.difference(now);
-}
+} */
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

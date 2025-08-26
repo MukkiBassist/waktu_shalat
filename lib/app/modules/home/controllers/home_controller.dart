@@ -7,8 +7,8 @@ import 'package:sholat/app/modules/dzikir/views/dzikir_view.dart';
 import 'package:sholat/app/modules/prayer_times/views/prayer_times_view.dart';
 import 'package:sholat/app/modules/qibla/views/qibla_view.dart';
 import 'package:sholat/app/modules/settings/views/settings_view.dart';
-import 'package:sholat/app/utils/logger.dart';
-import 'package:sholat/app/utils/permission_helper.dart';
+//import 'package:sholat/app/utils/logger.dart';
+//import 'package:sholat/app/utils/permission_helper.dart';
 
 class HomeController extends GetxController {
   final _selectedIndex = 0.obs;
@@ -16,7 +16,7 @@ class HomeController extends GetxController {
   set selectedIndex(int index) => _selectedIndex.value = index;
 
   final List<Widget> pages = [
-    PrayerTimesView(),
+    PrayerTimesView(activePrayerColor: Colors.transparent),
     DzikirView(),
     QiblaView(),
     SettingsView(),
@@ -27,9 +27,10 @@ class HomeController extends GetxController {
   }
 
   @override
+  // ignore: unnecessary_overrides
   void onReady() {
     super.onReady();
-    logInfo('onReady requestExactAlarmPermissionOnce');
-    requestExactAlarmPermissionOnce();
+    //logInfo('onReady requestExactAlarmPermissionOnce');
+    //requestExactAlarmPermissionOnce();
   }
 }

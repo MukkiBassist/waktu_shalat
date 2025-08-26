@@ -45,7 +45,7 @@ class NotificationService {
         // handle action payloads:
         // payload = 'refresh' -> refetch & reschedule
         if (resp.payload == 'refresh') {
-          await PrayerCacheService().fetchAndCachePrayerTimes();
+          await PrayerCacheService().loadPrayerTimesAndSavetoCache();
           await performReschedule();
         } else if (resp.payload == 'reschedule') {
           await performReschedule();

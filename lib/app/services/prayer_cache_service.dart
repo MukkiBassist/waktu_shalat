@@ -25,7 +25,7 @@ class PrayerCacheService {
   }
 
   /// Ambil dan cache jadwal sholat
-  Future<void> fetchAndCachePrayerTimes() async {
+  Future<void> loadPrayerTimesAndSavetoCache() async {
     final settings = Get.find<SettingsController>();
     final days = settings.cacheDays.value;
 
@@ -63,7 +63,7 @@ class PrayerCacheService {
 
     // schedule notifications for all cached entries
     await _scheduleAllPrayerNotifications(listToSave);
-    logSuccess('✅ Cached prayer times for $days days until $expiryDate');
+    logSuccess('Cached prayer times for $days days until $expiryDate');
   }
 
   /// Jadwalkan notifikasi untuk semua waktu sholat yang ada di cache

@@ -3,17 +3,20 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
+//import 'package:geocoding/geocoding.dart';
+//import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sholat/app/services/location_service.dart';
-import '../../../services/prayer_times_service.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:sholat/app/services/location_service.dart';
+import 'package:sholat/app/services/prayer_cache_service.dart';
+import 'package:sholat/app/utils/logger.dart';
+//import '../../../services/prayer_times_service.dart';
 //import '../../../utils/permission_helper.dart';
 
 class PrayerTimesController extends GetxController {
-  final PrayerTimesService _prayerTimeService = PrayerTimesService();
-  final LocationService _locationService = LocationService();
+  //final PrayerTimesService _prayerTimeService = PrayerTimesService();
+  //final LocationService _locationService = LocationService();
+  final PrayerCacheService _cacheService = PrayerCacheService();
 
   var isLoading = false.obs;
   var errorMessage = ''.obs;
@@ -26,13 +29,48 @@ class PrayerTimesController extends GetxController {
 
   Timer? _countdownTimer;
 
-  @override
+  /* @override
   void onInit() {
     super.onInit();
     loadPrayerTimes();
-  }
+  } */
 
-  Future<void> loadPrayerTimes() async {
+  //<---------------Start perubahan--------------->
+
+  /// Fungsi untuk memuat data sholat dari cache
+  Future<void> loadPrayerTimesFromCache() async {
+    try {
+      final cachedData = await _cacheService.getCachedPrayerTimes();
+      if (cachedData != null && cachedData.isNotEmpty) {
+        // Asumsi data yang disimpan adalah List<Map<String, dynamic>>
+        final prayerMap = <String, String>{};
+        final firstDayData = cachedData[0];
+
+        // Asumsi nama-nama sholat adalah key di dalam map
+        final prayerNames = ['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
+        for (var name in prayerNames) {
+          if (firstDayData.containsKey(name)) {
+            // Asumsi waktu sholat adalah string ISO8601
+            prayerMap[name] = _formatTime(DateTime.parse(firstDayData[name]));
+          }
+        }
+
+        prayerTimes.assignAll(prayerMap);
+        _updateCurrentAndNextPrayer();
+        _startCountdown();
+        logInfo('Data jadwal sholat berhasil dimuat dari cache.');
+      } else {
+        errorMessage.value = 'Tidak ada data sholat yang tersimpan di cache.';
+        logWarning('Tidak ada data sholat yang tersimpan di cache.');
+      }
+    } catch (e) {
+      logError('Gagal memuat waktu sholat dari cache: $e');
+      errorMessage.value = 'Gagal memuat waktu sholat dari cache: $e';
+    }
+  }
+  //<------------------End perubahan----------------->
+
+  /*  Future<void> loadPrayerTimes() async {
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -40,7 +78,9 @@ class PrayerTimesController extends GetxController {
       // Ambil lokasi saat ini
       Position? position = await _locationService.getCurrentLocation();
       if (position == null) {
+        logError('Gagal mendapatkan lokasi saat ini.');
         errorMessage.value = 'Gagal mendapatkan lokasi saat ini.';
+
         return;
       }
 
@@ -81,6 +121,24 @@ class PrayerTimesController extends GetxController {
       _startCountdown();
     } catch (e) {
       errorMessage.value = 'Gagal memuat waktu sholat: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  } */
+
+  // Fungsi baru untuk tombol refresh
+  Future<void> refreshPrayerTimes() async {
+    isLoading.value = true;
+    try {
+      // 1. Ambil dan simpan data terbaru dari jaringan ke cache
+      await _cacheService.loadPrayerTimesAndSavetoCache();
+
+      // 2. Muat data yang baru disimpan ke dalam controller
+      await loadPrayerTimesFromCache();
+
+      logSuccess('Jadwal sholat berhasil diperbarui.');
+    } catch (e) {
+      logError('Gagal memperbarui jadwal sholat: $e');
     } finally {
       isLoading.value = false;
     }
@@ -167,6 +225,11 @@ class PrayerTimesController extends GetxController {
     String minutes = twoDigits(duration.inMinutes.remainder(60));
     String seconds = twoDigits(duration.inSeconds.remainder(60));
     return "$hours:$minutes:$seconds";
+  }
+
+  String _formatTime(DateTime time) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    return "${twoDigits(time.hour)}:${twoDigits(time.minute)}";
   }
 
   @override

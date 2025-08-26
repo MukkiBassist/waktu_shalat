@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../modules/dzikir/bindings/dzikir_binding.dart';
@@ -29,12 +30,12 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.PRAYER_TIMES,
-      page: () => const PrayerTimesView(),
+      page: () => const PrayerTimesView(activePrayerColor: Colors.transparent),
       //binding: PrayerTimesBinding(),
     ),
     GetPage(
       name: _Paths.QIBLA,
-      page: () => const QiblaView(),
+      page: () => QiblaView(),
       binding: QiblaBinding(),
     ),
     GetPage(
