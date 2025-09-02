@@ -8,8 +8,7 @@
 ![iOS](https://img.shields.io/badge/iOS-%23107CFF.svg?style=for-the-badge&logo=ios&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)
 
-![App Preview](screenshots/app-preview.jpg) 
-![Qibla App Preview](screenshots/qibla-screen.jpg) 
+![App Preview](screenshots/COLLAGE-app-Preview.png) 
 
 Aplikasi **Sholat** membantu Anda tetap konsisten dalam menjalankan sholat 5 waktu dengan jadwal yang akurat berdasarkan lokasi Anda. Dilengkapi fitur notifikasi, arah kiblat, dzikir harian, dan tema dinamis, aplikasi ini hadir sebagai teman ibadah digital yang setia.
 
