@@ -62,7 +62,7 @@ Aplikasi **Sholat** membantu Anda tetap konsisten dalam menjalankan sholat 5 wak
 
 1. Clone repositori:
    ```bash
-   git clone https://github.com/username/sholat.git
+   git clone https://github.com/MukkiBassist/sholat.git
    cd sholat
 
 📄 Lisensi
