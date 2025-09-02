@@ -1,30 +1,52 @@
 // lib/app/modules/settings/controllers/settings_controller.dart
 // ignore_for_file: avoid_print
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sholat/app/utils/logger.dart';
 
+import '../../prayer_times/controllers/prayer_times_controller.dart';
+
 class SettingsController extends GetxController {
   static const _cacheDaysKey = 'prayer_cache_days';
-  final cacheDays = 7.obs;
+  RxInt cacheDays = 7.obs; // Nilai default yang konsisten
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadSettings();
+  }
 
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    // Load cache days from SharedPreferences, default to 3 if not set
+    // Muat jumlah hari cache dari SharedPreferences, default ke 7
     cacheDays.value = prefs.getInt(_cacheDaysKey) ?? 7;
     logSynced('Settings loaded: cacheDays=${cacheDays.value}');
   }
 
-  Future<void> updateCacheDays(int days) async {
+  Future<void> setCacheDays(int days) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_cacheDaysKey, days);
     cacheDays.value = days;
-    logSuccess('Settings updated: cacheDays=$days');
-  }
 
-  Future<int> getCacheDaysOrDefault() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_cacheDaysKey) ?? 3;
+    logSuccess('Cache days updated to $days days.');
+
+    // Memanggil PrayerTimesController untuk memperbarui data
+    await Get.find<PrayerTimesController>().fetchAndSetPrayerTimes(
+      forceRefresh: true,
+    );
+
+    Get.snackbar(
+      "Berhasil",
+      "Jumlah hari cache diubah menjadi $days",
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      Get.back(); // Tutup dialog setelah 2 detik
+      Get.back();
+    });
   }
 }

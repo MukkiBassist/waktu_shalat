@@ -1,15 +1,19 @@
+// lib/app/modules/settings/views/settings_view.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sholat/app/utils/logger.dart';
 import '../../../theme/theme_controller.dart';
+import '../../prayer_times/controllers/prayer_times_controller.dart';
 import '../../settings/controllers/settings_controller.dart';
 import '../../../services/prayer_cache_service.dart';
 
 class SettingsView extends StatelessWidget {
+  // Use Get.find() consistently for all dependencies
   final ThemeController themeController = Get.find();
   final SettingsController controller = Get.find();
-  //final PrayerCacheService prayerCacheService = Get.find();
-  final PrayerCacheService prayerCacheService = PrayerCacheService();
+  final PrayerCacheService prayerCacheService = Get.find();
+  final PrayerTimesController prayerTimesController =
+      Get.find<PrayerTimesController>();
 
   SettingsView({super.key});
 
@@ -32,7 +36,6 @@ class SettingsView extends StatelessWidget {
               onChanged: (value) => themeController.toggleTheme(),
             ),
           ),
-
           ListTile(
             title: const Text("Cache Hari Sholat"),
             subtitle: Obx(
@@ -41,40 +44,42 @@ class SettingsView extends StatelessWidget {
             trailing: IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () {
+                final textController = TextEditingController(
+                  text: controller.cacheDays.value.toString(),
+                );
                 Get.defaultDialog(
                   title: "Ubah Cache Hari",
+
                   content: TextField(
+                    controller: textController,
                     autofocus: true,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       hintText: "Masukkan jumlah hari (Maks 30)",
                     ),
-                    onSubmitted: (value) async {
-                      final days = int.tryParse(value);
-
-                      if (days != null && days > 0) {
-                        if (days > 30) {
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final days = int.tryParse(textController.text);
+                        if (days != null && days > 0 && days <= 30) {
+                          // Tutup dialog setelah berhasil
+                          controller.setCacheDays(days.toInt());
+                          Get.back();
+                        } else {
                           Get.snackbar(
                             "Error",
-                            "Jumlah hari tidak boleh lebih dari 30",
+                            "Masukkan angka yang valid (1-30)",
                           );
-                          return;
                         }
-                        // Update cache days in SettingsController
-                        controller.updateCacheDays(days);
-                        await prayerCacheService
-                            .loadPrayerTimesAndSavetoCache();
-                        logSuccess('Cache days updated to $days');
-                        Get.snackbar(
-                          "Berhasil",
-                          "Jumlah hari cache diubah menjadi $days",
-                        );
-                        Get.back();
-                      } else {
-                        Get.snackbar("Error", "Masukkan angka yang valid");
-                      }
-                    },
-                  ),
+                      },
+                      child: const Text('Simpan'),
+                    ),
+                  ],
                 );
               },
             ),

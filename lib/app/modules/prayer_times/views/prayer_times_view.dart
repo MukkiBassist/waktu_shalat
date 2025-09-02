@@ -9,7 +9,10 @@ import '../controllers/prayer_times_controller.dart';
 class PrayerTimesView extends GetView<PrayerTimesController> {
   // Tambahkan properti untuk menerima warna dari HomeView
   final Color activePrayerColor;
-  const PrayerTimesView({super.key, required this.activePrayerColor});
+  PrayerTimesView({super.key, required this.activePrayerColor});
+
+  // Deklarasi _isExpanded sebagai variabel private di dalam kelas
+  final _isExpanded = true.obs;
 
   // Menentukan animasi Lottie berdasarkan nama sholat
   String getLottieAsset(String prayerName) {
@@ -46,18 +49,17 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final RxBool isExpanded = true.obs;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
 
       body: SafeArea(
         child: Obx(() {
-          if (controller.isLoading.value) {
+          if (controller.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (controller.errorMessage.isNotEmpty) {
+          /* if (controller.errorMessage.isNotEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -78,6 +80,32 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                 ),
               ),
             );
+          } */
+
+          // Catatan: Tidak ada lagi errorMessage. Controller hanya memberikan data.
+          // Jika prayerTimes kosong, itu berarti ada error.
+          if (controller.prayerTimes.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Gagal mendapatkan jadwal sholat. Pastikan lokasi aktif dan internet stabil.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.red, fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      // Menggunakan metode yang benar
+                      onPressed: () => controller.fetchAndSetPrayerTimes(),
+                      child: const Text('Silahkan coba lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return Stack(
@@ -86,7 +114,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
               Obx(
                 () => AnimatedOpacity(
                   duration: const Duration(milliseconds: 500),
-                  opacity: isExpanded.value ? 0 : 1,
+                  opacity: _isExpanded.value ? 0 : 1,
                   child: Stack(
                     children: [
                       // Background waktu
@@ -217,7 +245,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                         right: 10,
                         child: Obx(
                           () => GestureDetector(
-                            onTap: () => isExpanded.value = !isExpanded.value,
+                            onTap: () => _isExpanded.value = !_isExpanded.value,
                             child: Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
@@ -225,7 +253,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                               ),
                               padding: const EdgeInsets.all(8),
                               child: Icon(
-                                isExpanded.value
+                                _isExpanded.value
                                     ? Icons.keyboard_arrow_up
                                     : Icons.keyboard_arrow_down,
                                 color: Colors.white,
@@ -243,15 +271,17 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
-                        height: isExpanded.value ? 500 : 0,
+                        height: _isExpanded.value ? 500 : 0,
                         child: ListView.separated(
                           physics: const NeverScrollableScrollPhysics(),
                           padding: EdgeInsets.zero,
 
-                          itemCount: controller.prayerTimes.length,
+                          itemCount: controller
+                              .todayPrayerTimes
+                              .length, // prayerTimes.length,
                           itemBuilder: (_, index) {
                             // Akses entri Map menggunakan index
-                            final prayerEntry = controller.prayerTimes.entries
+                            /* final prayerEntry = controller.prayerTimes.entries
                                 .elementAt(index);
                             final prayerName = prayerEntry.key;
                             final prayerTime = prayerEntry.value;
@@ -260,12 +290,29 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                 controller.currentActivePrayer.value ==
                                 prayerName;
 
+                                 */
+
+                            // <-- PERBAIKAN DI SINI -->
+                            final prayer = controller.prayerTimes[index];
+                            final isCurrent =
+                                controller.currentActivePrayer.value ==
+                                prayer.name;
+
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 16,
                                 horizontal: 20,
                               ),
                               decoration: BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isDark
+                                        ? const Color(0x4D000000)
+                                        : const Color(0x33000000),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
                                 color: isCurrent
                                     ? Theme.of(
                                         context,
@@ -286,7 +333,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                   Text(
                                     /* prayer.name, */
                                     // <-- Perbaikan di sini -->
-                                    prayerName,
+                                    prayer.name,
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -301,7 +348,10 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                   ),
                                   Text(
                                     // Perbaikan di sini: gunakan DateTime.parse untuk mengonversi string ke DateTime
-                                    prayerTime,
+                                    //prayerTime,
+                                    controller.formatTimeForDisplay(
+                                      prayer.dateTime,
+                                    ),
                                     // end of Perbaikan
                                     style: TextStyle(
                                       fontSize: 18,

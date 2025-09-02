@@ -4,53 +4,47 @@
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:adhan/adhan.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:sholat/app/services/prayer_cache_service.dart';
 import 'package:sholat/app/utils/logger.dart';
+import '../data/models/prayer_time.dart';
 import '../services/notification_service.dart';
-import '../helpers/notification_scheduler.dart';
 
 class NotificationController {
-  static const int dummyNotificationId = 999999;
+  static final NotificationController _instance =
+      NotificationController._internal();
+  factory NotificationController() => _instance;
+  NotificationController._internal();
 
   /// Dipanggil di main untuk set listener yang valid saat app hidup
   static Future<void> initialize() async {
     await NotificationService().initialize();
   }
 
+  /// Membatalkan semua notifikasi sholat yang sudah terjadwal
+  Future<void> cancelAllPrayerNotifications() async {
+    await NotificationService().cancelAllNotifications();
+  }
+
   /// Dipanggil baik di FG maupun di BG
-  @pragma('vm:entry-point')
-  static Future<void> performReschedule({bool background = false}) async {
+  Future<void> performReschedule() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      logLoading('NotificationController.performReschedule start');
 
-      final lat = prefs.getDouble('last_lat');
-      final lon = prefs.getDouble('last_lon');
+      // 1. Batalkan semua notifikasi lama
+      await cancelAllPrayerNotifications();
 
-      if (lat == null || lon == null) {
-        logWarning(
-          'performReschedule: no cached location available, skipping. (background=$background)',
-        );
+      // 2. Ambil data sholat terbaru dari cache
+      final prayerTimes = await PrayerCacheService().getPrayerTimes();
+
+      if (prayerTimes.isEmpty) {
+        logWarning('No prayer times found in cache for reschedule');
         return;
       }
 
-      final prayerTimesResult = PrayerTimes(
-        Coordinates(lat, lon),
-        DateComponents.from(DateTime.now()),
-        CalculationMethod.muslim_world_league.getParameters()
-          ..madhab = Madhab.shafi,
-      );
-
-      final newPrayerTimes = [
-        PrayerTime(id: 1, name: 'Subuh', dateTime: prayerTimesResult.fajr),
-        PrayerTime(id: 2, name: 'Dzuhur', dateTime: prayerTimesResult.dhuhr),
-        PrayerTime(id: 3, name: 'Ashar', dateTime: prayerTimesResult.asr),
-        PrayerTime(id: 4, name: 'Maghrib', dateTime: prayerTimesResult.maghrib),
-        PrayerTime(id: 5, name: 'Isya', dateTime: prayerTimesResult.isha),
-      ];
-
+      // 3. Ambil preferensi notifikasi pengguna dari SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString('prayerNotifPrefs');
-      final Map<String, bool> notificationPrefs = stored != null
+      final Map<String, bool> userPrefs = stored != null
           ? Map<String, bool>.from(jsonDecode(stored))
           : {
               'Subuh': true,
@@ -61,30 +55,44 @@ class NotificationController {
               'Isya': true,
             };
 
-      await cancelAllPrayerNotifications();
-
-      await schedulePrayerNotificationsWithCatchup(
-        newPrayerTimes,
-        notificationPrefs,
+      // 4. Jadwalkan notifikasi menggunakan helper
+      await _schedulePrayerNotificationsWithCatchup(
+        prayerTimes.cast<PrayerTime>(),
+        userPrefs,
       );
 
+      // 5. Tandai bahwa penjadwalan hari ini sudah selesai
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       await prefs.setString('last_scheduled_date', today);
 
-      logSuccess('performReschedule done (background=$background)');
+      logSuccess('performReschedule done');
     } catch (e) {
       logError('performReschedule failed: $e');
     }
   }
-}
 
-Future<void> cancelAllPrayerNotifications() async {
-  final plugin = FlutterLocalNotificationsPlugin();
-  final pending = await plugin.pendingNotificationRequests();
-  for (var notif in pending) {
-    if (notif.id != NotificationController.dummyNotificationId) {
-      await plugin.cancel(notif.id);
+  /// Helper method untuk menjadwalkan notifikasi satu per satu
+  Future<void> _schedulePrayerNotificationsWithCatchup(
+    List<PrayerTime> prayerTimes,
+    Map<String, bool> userPrefs,
+  ) async {
+    final now = DateTime.now();
+
+    for (final prayer in prayerTimes) {
+      // Pastikan notifikasi diaktifkan oleh pengguna dan waktunya belum terlewat
+      if (userPrefs[prayer.name] != false && prayer.dateTime.isAfter(now)) {
+        await NotificationService().schedulePrayerNotification(
+          id: prayer.id,
+          title: 'Waktu Sholat',
+          body: 'Sudah masuk waktu ${prayer.name}',
+          dateTime: prayer.dateTime,
+        );
+        logInfo('Scheduled ${prayer.name} at ${prayer.dateTime}');
+      } else {
+        logInfo(
+          'Skipped ${prayer.name} notification (already passed or disabled)',
+        );
+      }
     }
   }
-  logSynced('All old prayer notifications cancelled');
 }

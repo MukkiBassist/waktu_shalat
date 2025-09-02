@@ -1,20 +1,38 @@
 // lib/app/services/prayer_cache_service.dart
-// ignore_for_file: avoid_print
+// Hapus semua import yang tidak relevan (notification_service, settings_controller, prayer_times_service)
 
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
-import 'package:sholat/app/services/prayer_times_service.dart';
-import 'package:sholat/app/services/notification_service.dart';
-import 'package:sholat/app/modules/settings/controllers/settings_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sholat/app/data/models/prayer_time.dart';
 import 'package:sholat/app/utils/logger.dart';
+
+import '../modules/settings/controllers/settings_controller.dart';
 
 class PrayerCacheService {
   static const _cacheKey = 'prayer_times_cache';
   static const _expiryKey = 'prayer_times_expiry';
 
-  /// Cek apakah cache sudah kadaluarsa.
-  /// Menggunakan SharedPreferences untuk menyimpan dan mengambil data
+  Future<List<PrayerTime>> getPrayerTimes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_cacheKey);
+    if (jsonString == null) {
+      logWarning('No prayer times found in cache.');
+      return [];
+    }
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+      return jsonList
+          .map((json) => PrayerTime.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      logError('Failed to load prayer times from cache: $e');
+      return [];
+    }
+  }
+
+  // Menghapus semua metode yang tidak relevan dan tidak digunakan
+
   Future<bool> isCacheExpired() async {
     final prefs = await SharedPreferences.getInstance();
     final expiryString = prefs.getString(_expiryKey);
@@ -25,81 +43,15 @@ class PrayerCacheService {
   }
 
   /// Ambil dan cache jadwal sholat
-  Future<void> loadPrayerTimesAndSavetoCache() async {
-    final settings = Get.find<SettingsController>();
-    final days = settings.cacheDays.value;
-
-    // fetch times (uses Adhan inside)
-    final service = PrayerTimesService();
-    final items = await service.fetchPrayerTimesForDays(days);
-
-    // konversi ke format yang akan disimpan
-    final Map<String, Map<String, String>> perDay = {};
-    for (var item in items) {
-      final dayKey = DateTime(
-        item.dateTime.year,
-        item.dateTime.month,
-        item.dateTime.day,
-      ).toIso8601String();
-      perDay.putIfAbsent(dayKey, () => {});
-      perDay[dayKey]![item.name] = DateTime(
-        item.dateTime.year,
-        item.dateTime.month,
-        item.dateTime.day,
-        item.dateTime.hour,
-        item.dateTime.minute,
-      ).toIso8601String();
-    }
-
-    final listToSave = perDay.entries.map((e) {
-      logInfo('Saving prayer time for ${e.key}: ${e.value}');
-      return {'date': e.key, ...e.value};
-    }).toList();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_cacheKey, jsonEncode(listToSave));
-    final expiryDate = DateTime.now().add(Duration(days: days));
-    await prefs.setString(_expiryKey, expiryDate.toIso8601String());
-
-    // schedule notifications for all cached entries
-    await _scheduleAllPrayerNotifications(listToSave);
-    logSuccess('Cached prayer times for $days days until $expiryDate');
-  }
-
-  /// Jadwalkan notifikasi untuk semua waktu sholat yang ada di cache
-  Future<void> _scheduleAllPrayerNotifications(
-    List<Map<String, dynamic>> prayerTimes,
-  ) async {
-    final notifService = NotificationService();
-    int notifId = 1000;
-
-    for (var dayData in prayerTimes) {
-      final _ = DateTime.parse(dayData['date']);
-
-      final entries = [
-        {'name': 'Subuh', 'field': 'Subuh'},
-        {'name': 'Dzuhur', 'field': 'Dzuhur'},
-        {'name': 'Ashar', 'field': 'Ashar'},
-        {'name': 'Maghrib', 'field': 'Maghrib'},
-        {'name': 'Isya', 'field': 'Isya'},
-      ];
-
-      for (var entry in entries) {
-        final iso = dayData[entry['field']];
-        if (iso == null) continue;
-        final dt = DateTime.parse(iso);
-        if (dt.isBefore(DateTime.now())) continue;
-        await notifService.schedulePrayerNotification(
-          id: notifId++,
-          title: 'Pengingat Sholat ${entry['name']}',
-          body: 'Waktunya Sholat ${entry['name']}',
-          dateTime: dt,
-          payload: 'prayer_${entry['name']}',
-        );
-        logSuccess('Scheduled notification for ${entry['name']} at $dt');
-      }
-    }
-  }
+  /// Sekarang hanya bertugas mengambil dan menyimpan ke cache
+  /*  Future<void> loadPrayerTimesAndSavetoCache() async {
+    // Di sini, Anda perlu memanggil service lain yang bertugas mengambil data.
+    // Kode ini harus dipindahkan ke controller yang lebih tinggi.
+    // Contoh:
+    // final service = PrayerTimesService();
+    // final items = await service.fetchPrayerTimesForDays(days);
+    // await savePrayerTimes(items);
+  } */
 
   /// Ambil jadwal sholat dari cache.
   /// Mengembalikan null jika tidak ada cache
@@ -108,37 +60,22 @@ class PrayerCacheService {
     final json = prefs.getString(_cacheKey);
     if (json == null) return null;
     final List decoded = jsonDecode(json);
-    logInfo('✅ Retrieved cached prayer times: ${decoded.length} entries');
+    logSuccess('Retrieved cached prayer times: ${decoded.length} entries');
     return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  /// Set jumlah hari untuk cache
-  Future<void> setCacheDays(int days) async {
+  /// Menyimpan data jadwal sholat ke cache.
+  Future<void> savePrayerTimes(List<PrayerTime> prayerTimes) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('prayer_cache_days', days);
-  }
+    final jsonString = jsonEncode(prayerTimes.map((e) => e.toJson()).toList());
+    await prefs.setString(_cacheKey, jsonString);
 
-  /// Get jumlah hari untuk cache
-  /// Default is 3 days if not set
-  Future<int> getCacheDays() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    return prefs.getInt('prayer_cache_days') ?? 3;
-  }
-
-  /// SImpan jadwal sholat ke cache dengan masa berlaku
-  /// days: jumlah hari sebelum cache dianggap kadaluarsa
-  Future<void> savePrayerTimesToCache(
-    // Save a list of prayer times to cache with expiry
-    List<Map<String, dynamic>> prayerTimes,
-    int days,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_cacheKey, jsonEncode(prayerTimes));
+    // Ambil jumlah hari cache dari SettingsController
+    final settingsController = Get.find<SettingsController>();
+    final days = settingsController.cacheDays.value;
 
     final expiryDate = DateTime.now().add(Duration(days: days));
     await prefs.setString(_expiryKey, expiryDate.toIso8601String());
-
-    logSuccess('✅ Saved prayer times to cache with expiry: $expiryDate');
+    logSuccess('Prayer times saved to cache until $expiryDate.');
   }
 }

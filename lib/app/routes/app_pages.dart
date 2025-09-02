@@ -30,7 +30,7 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.PRAYER_TIMES,
-      page: () => const PrayerTimesView(activePrayerColor: Colors.transparent),
+      page: () => PrayerTimesView(activePrayerColor: Colors.transparent),
       //binding: PrayerTimesBinding(),
     ),
     GetPage(
