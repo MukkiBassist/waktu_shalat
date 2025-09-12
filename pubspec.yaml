@@ -13,7 +13,6 @@ dependencies:
   android_alarm_manager_plus: ^4.0.7
   android_intent_plus: ^5.3.0
   audioplayers: ^6.5.0
-  #awesome_notifications: ^0.10.1
   cupertino_icons: ^1.0.8
   device_info_plus: ^11.5.0
   flutter:
@@ -26,11 +25,13 @@ dependencies:
   geocoding: ^4.0.0
   geolocator: ^14.0.2
   get: ^4.7.2
+  hijri: ^3.0.0
   intl: ^0.20.2
   lottie: ^3.3.1
   permission_handler: ^12.0.1
   salomon_bottom_bar: ^3.3.2
   shared_preferences: ^2.5.3
+  table_calendar: ^3.2.0
   timezone: ^0.10.1
   workmanager: ^0.9.0+2
 

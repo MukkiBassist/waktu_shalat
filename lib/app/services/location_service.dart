@@ -28,12 +28,21 @@ class LocationService {
     }
 
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 0,
-        ),
-      );
+      final position =
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+            ),
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              logWarning(
+                'LocationService: timeout obtaining position, falling back to cache',
+              );
+              throw Exception('Timeout obtaining position');
+            },
+          );
 
       if (saveToPrefs) {
         final prefs = await SharedPreferences.getInstance();

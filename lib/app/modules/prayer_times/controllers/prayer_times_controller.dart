@@ -14,6 +14,7 @@ import 'package:sholat/app/utils/notification_controller.dart';
 import 'package:sholat/app/modules/settings/controllers/settings_controller.dart';
 
 class PrayerTimesController extends GetxController {
+  final settingsController = Get.find<SettingsController>();
   final auraColor = const Color(0xffEEEEEE).obs;
   final appBarAuraColor = const Color(0xffEEEEEE).obs;
   final _isLoading = false.obs;
@@ -34,7 +35,7 @@ class PrayerTimesController extends GetxController {
 
   var currentActivePrayer = ''.obs;
   var nextPrayerName = ''.obs;
-  var currentAddress = ''.obs;
+  var currentAddress = 'Memuat lokasi...'.obs;
   var timeToNextPrayer = ''.obs;
 
   final PrayerCacheService _cacheService = PrayerCacheService();
@@ -47,7 +48,16 @@ class PrayerTimesController extends GetxController {
   void onInit() {
     super.onInit();
     loadLastColors();
+    loadLastAddress();
     fetchAndSetPrayerTimes();
+  }
+
+  Future<void> loadLastAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedAddress = prefs.getString('last_address');
+    if (savedAddress != null) {
+      currentAddress.value = savedAddress;
+    }
   }
 
   Future<void> saveColors(Color aura, Color appBarAura) async {
@@ -118,9 +128,29 @@ class PrayerTimesController extends GetxController {
       if (forceRefresh || isCacheExpired) {
         logInfo('Cache expired or empty. Fetching new data from network...');
         final position = await _locationService.getCurrentLocation();
+
         if (position != null) {
-          final settingsController = Get.find<SettingsController>();
           final days = settingsController.cacheDays.value;
+
+          //simpan alamat
+          String address;
+          try {
+            address = await _locationService.getAddressFromCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+          } catch (e) {
+            logError('Failed to get address from coordinates: $e');
+            final prefs = await SharedPreferences.getInstance();
+            address =
+                prefs.getString('last_address') ?? 'Alamat tidak tersedia';
+          }
+          currentAddress.value = address;
+          // Simpan ke prefs
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('last_address', address);
+          await prefs.setDouble('last_lat', position.latitude);
+          await prefs.setDouble('last_lon', position.longitude);
 
           dataToProcess = await _prayerService.fetchPrayerTimesForDays(
             days,
@@ -139,8 +169,23 @@ class PrayerTimesController extends GetxController {
           }
         } else {
           logError('Failed to get current location. Cannot fetch new data.');
-          await _loadFromCache();
-          dataToProcess = _prayerTimes.toList();
+
+          // Coba muat dari cache jika lokasi tidak tersedia
+          final prefs = await SharedPreferences.getInstance();
+          final savedLat = prefs.getDouble('last_lat');
+          final savedLon = prefs.getDouble('last_lon');
+          final savedAddress = prefs.getString('last_address');
+          if (savedLat != null && savedLon != null) {
+            currentAddress.value = savedAddress ?? 'Alamat tidak tersedia';
+            dataToProcess = await _prayerService.fetchPrayerTimesForDays(
+              settingsController.cacheDays.value,
+              latitude: savedLat,
+              longitude: savedLon,
+            );
+          } else {
+            await _loadFromCache();
+            dataToProcess = _prayerTimes.toList();
+          }
         }
       } else {
         logInfo('Using cached data.');

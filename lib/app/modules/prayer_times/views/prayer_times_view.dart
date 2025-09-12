@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
+import 'widgets/hijri_calendar_widget.dart';
 
 import '../controllers/prayer_times_controller.dart';
 
@@ -252,6 +253,7 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                               padding: const EdgeInsets.all(8),
+                              //Gunakan Icon untuk jadwal sholat
                               child: Icon(
                                 _isExpanded.value
                                     ? Icons.keyboard_arrow_up
@@ -268,20 +270,23 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                   // Jadwal Sholat: Foldable List
                   Obx(
                     () => ClipRect(
-                      child: AnimatedContainer(
+                      child: AnimatedSize(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
-                        height: _isExpanded.value ? 500 : 0,
-                        child: ListView.separated(
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
+                        alignment: Alignment.topCenter,
 
-                          itemCount: controller
-                              .todayPrayerTimes
-                              .length, // prayerTimes.length,
-                          itemBuilder: (_, index) {
-                            // Akses entri Map menggunakan index
-                            /* final prayerEntry = controller.prayerTimes.entries
+                        child: _isExpanded.value
+                            ? ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+
+                                itemCount: controller
+                                    .todayPrayerTimes
+                                    .length, // prayerTimes.length,
+                                itemBuilder: (_, index) {
+                                  // Akses entri Map menggunakan index
+                                  /* final prayerEntry = controller.prayerTimes.entries
                                 .elementAt(index);
                             final prayerName = prayerEntry.key;
                             final prayerTime = prayerEntry.value;
@@ -292,86 +297,89 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
 
                                  */
 
-                            // <-- PERBAIKAN DI SINI -->
-                            final prayer = controller.prayerTimes[index];
-                            final isCurrent =
-                                controller.currentActivePrayer.value ==
-                                prayer.name;
+                                  // <-- PERBAIKAN DI SINI -->
+                                  final prayer = controller.prayerTimes[index];
+                                  final isCurrent =
+                                      controller.currentActivePrayer.value ==
+                                      prayer.name;
 
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                                horizontal: 20,
-                              ),
-                              decoration: BoxDecoration(
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isDark
-                                        ? const Color(0x4D000000)
-                                        : const Color(0x33000000),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                                color: isCurrent
-                                    ? Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer
-                                    : Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isCurrent
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Colors.grey.shade300,
-                                  width: isCurrent ? 2 : 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    /* prayer.name, */
-                                    // <-- Perbaikan di sini -->
-                                    prayer.name,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                      horizontal: 20,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isDark
+                                              ? const Color(0x4D000000)
+                                              : const Color(0x33000000),
+                                          blurRadius: 3,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
                                       color: isCurrent
                                           ? Theme.of(
                                               context,
-                                            ).colorScheme.onPrimaryContainer
-                                          : Theme.of(
-                                              context,
-                                            ).textTheme.bodyLarge?.color,
+                                            ).colorScheme.primaryContainer
+                                          : Theme.of(context).cardColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: isCurrent
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Colors.grey.shade300,
+                                        width: isCurrent ? 2 : 1,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    // Perbaikan di sini: gunakan DateTime.parse untuk mengonversi string ke DateTime
-                                    //prayerTime,
-                                    controller.formatTimeForDisplay(
-                                      prayer.dateTime,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          /* prayer.name, */
+                                          // <-- Perbaikan di sini -->
+                                          prayer.name,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: isCurrent
+                                                ? Theme.of(context)
+                                                      .colorScheme
+                                                      .onPrimaryContainer
+                                                : Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyLarge?.color,
+                                          ),
+                                        ),
+                                        Text(
+                                          // Perbaikan di sini: gunakan DateTime.parse untuk mengonversi string ke DateTime
+                                          //prayerTime,
+                                          controller.formatTimeForDisplay(
+                                            prayer.dateTime,
+                                          ),
+                                          // end of Perbaikan
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: isCurrent
+                                                ? Theme.of(context)
+                                                      .colorScheme
+                                                      .onPrimaryContainer
+                                                : Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyLarge?.color,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    // end of Perbaikan
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: isCurrent
-                                          ? Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimaryContainer
-                                          : Theme.of(
-                                              context,
-                                            ).textTheme.bodyLarge?.color,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                          separatorBuilder: (_, index) =>
-                              const SizedBox(height: 8),
-                        ),
+                                  );
+                                },
+                                separatorBuilder: (_, index) =>
+                                    const SizedBox(height: 8),
+                              )
+                            : const HijriCalendarWidget(),
                       ),
                     ),
                   ),

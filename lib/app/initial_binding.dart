@@ -11,11 +11,11 @@ class InitialBinding extends Bindings {
   @override
   void dependencies() {
     // Core services
-    Get.put(PrayerCacheService());
+    Get.put(PrayerCacheService(), permanent: true);
 
     // Core controllers
     Get.put(SettingsController());
-    Get.put(PrayerTimesController());
+    Get.put(PrayerTimesController(), permanent: true);
     Get.put(ThemeController());
     Get.put(NotificationController());
   }
