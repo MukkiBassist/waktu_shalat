@@ -37,6 +37,7 @@ class PrayerTimesController extends GetxController {
   var nextPrayerName = ''.obs;
   var currentAddress = 'Memuat lokasi...'.obs;
   var timeToNextPrayer = ''.obs;
+  final nextPrayer = Rxn<PrayerTime>();
 
   final PrayerCacheService _cacheService = PrayerCacheService();
   final PrayerTimesService _prayerService = PrayerTimesService();
@@ -126,13 +127,13 @@ class PrayerTimesController extends GetxController {
       List<PrayerTime> dataToProcess = [];
 
       if (forceRefresh || isCacheExpired) {
-        logInfo('Cache expired or empty. Fetching new data from network...');
+        logInfo('Cache expired or empty. Fetching new data...');
         final position = await _locationService.getCurrentLocation();
 
         if (position != null) {
           final days = settingsController.cacheDays.value;
 
-          //simpan alamat
+          // Simpan alamat
           String address;
           try {
             address = await _locationService.getAddressFromCoordinates(
@@ -146,6 +147,7 @@ class PrayerTimesController extends GetxController {
                 prefs.getString('last_address') ?? 'Alamat tidak tersedia';
           }
           currentAddress.value = address;
+          
           // Simpan ke prefs
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('last_address', address);
@@ -157,24 +159,19 @@ class PrayerTimesController extends GetxController {
             latitude: position.latitude,
             longitude: position.longitude,
           );
-
+          
           if (dataToProcess.isNotEmpty) {
-            await _cacheService.savePrayerTimes(dataToProcess);
-            await NotificationController().performReschedule();
-            logSuccess('Prayer times fetched and saved to cache.');
-          } else {
-            await _loadFromCache();
-            dataToProcess = _prayerTimes.toList();
-            logWarning('Failed to fetch new prayer times.');
+            logSuccess('Prayer times fetched successfully using GPS.');
           }
         } else {
-          logError('Failed to get current location. Cannot fetch new data.');
+          logError('Failed to get current location. Falling back to cached coordinates...');
 
-          // Coba muat dari cache jika lokasi tidak tersedia
+          // Coba hitung berdasarkan koordinat cache terakhir jika GPS gagal
           final prefs = await SharedPreferences.getInstance();
           final savedLat = prefs.getDouble('last_lat');
           final savedLon = prefs.getDouble('last_lon');
           final savedAddress = prefs.getString('last_address');
+          
           if (savedLat != null && savedLon != null) {
             currentAddress.value = savedAddress ?? 'Alamat tidak tersedia';
             dataToProcess = await _prayerService.fetchPrayerTimesForDays(
@@ -182,10 +179,22 @@ class PrayerTimesController extends GetxController {
               latitude: savedLat,
               longitude: savedLon,
             );
-          } else {
-            await _loadFromCache();
-            dataToProcess = _prayerTimes.toList();
+            if (dataToProcess.isNotEmpty) {
+              logSuccess('Prayer times calculated successfully using cached coordinates.');
+            }
           }
+        }
+
+        // Jika berhasil mendapatkan data baru (dari GPS atau fallback koordinat cache), simpan ke cache dan reschedule notifikasi
+        if (dataToProcess.isNotEmpty) {
+          await _cacheService.savePrayerTimes(dataToProcess);
+          await NotificationController().performReschedule();
+          logSuccess('Prayer times successfully saved to cache and notifications rescheduled.');
+        } else {
+          // Jika gagal sama sekali, muat cache lama yang ada
+          logWarning('Failed to fetch or calculate new prayer times. Trying to load old cache...');
+          await _loadFromCache();
+          dataToProcess = _prayerTimes.toList();
         }
       } else {
         logInfo('Using cached data.');
@@ -198,6 +207,10 @@ class PrayerTimesController extends GetxController {
       if (_prayerTimes.isNotEmpty) {
         _updatePrayerState();
         _startCountdown();
+      } else {
+        // Jika data sholat tetap kosong setelah semua upaya, tampilkan notifikasi peringatan
+        logError('FATAL: Gagal memuat jadwal sholat dari internet & cache.');
+        await NotificationController().showCacheEmptyWarning();
       }
     } finally {
       _isLoading(false);
@@ -233,8 +246,15 @@ class PrayerTimesController extends GetxController {
       }
     }
 
+    // Jika tidak ada jadwal berikutnya hari ini, ambil jadwal pertama besok
+    next ??= sortedTimes.firstWhereOrNull(
+      (p) => p.dateTime.toLocal().isAfter(now),
+    );
+    next ??= _prayerTimes.first;
+
     currentActivePrayer.value = active?.name ?? '';
-    nextPrayerName.value = next?.name ?? sortedTimes.first.name;
+    nextPrayerName.value = next.name;
+    nextPrayer.value = next;
 
     final colorSource = currentActivePrayer.value.isNotEmpty
         ? currentActivePrayer.value
@@ -244,16 +264,19 @@ class PrayerTimesController extends GetxController {
 
   void _startCountdown() {
     _countdownTimer?.cancel();
-    if (nextPrayerName.value.isEmpty) return;
+    if (nextPrayer.value == null) return;
 
-    final nextPrayer = _prayerTimes.firstWhereOrNull(
-      (p) => p.name == nextPrayerName.value,
-    );
-    if (nextPrayer == null) return;
-
-    DateTime nextTime = nextPrayer.dateTime.toLocal();
+    DateTime nextTime = nextPrayer.value!.dateTime.toLocal();
     if (nextTime.isBefore(DateTime.now())) {
-      nextTime = nextTime.add(const Duration(days: 1));
+      // This case should ideally not happen if _updatePrayerState is correct
+      // But as a fallback, let's find the next prayer time from the full list
+      final now = DateTime.now();
+      final futurePrayer = _prayerTimes.firstWhereOrNull(
+        (p) => p.dateTime.toLocal().isAfter(now),
+      );
+      if (futurePrayer == null) return; // No future prayers found
+      nextPrayer.value = futurePrayer;
+      nextTime = futurePrayer.dateTime.toLocal();
     }
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {

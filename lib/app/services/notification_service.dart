@@ -88,6 +88,30 @@ class NotificationService {
     );
   }
 
+  Future<void> showWarningNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    await _flutterLocalNotificationsPlugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          channelName,
+          channelDescription: channelDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+    logInfo('Showing warning notification: $title');
+  }
+
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
     logInfo('All notifications cancelled');

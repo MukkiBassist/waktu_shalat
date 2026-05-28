@@ -203,41 +203,75 @@ class PrayerTimesView extends GetView<PrayerTimesController> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Sholat Berikutnya',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              controller.nextPrayerName.value,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyLarge?.color,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Dalam ${controller.timeToNextPrayer.value}',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color,
-                              ),
-                            ),
-                          ],
-                        ),
+                        child: Obx(() {
+                          final prayer = controller.nextPrayer.value;
+                          final prayerName = controller.nextPrayerName.value;
+
+                          final isSunrise =
+                              prayer != null &&
+                              prayer.name == 'Terbit Matahari';
+
+                          if (isSunrise) {
+                            final time = controller.formatTimeForDisplay(
+                              prayer.dateTime,
+                            );
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Akan tiba Terbit Fajar pada $time',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sholat Berikutnya',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.secondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  prayerName, // Handles prayer name and 'Muat Ulang'
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                // Only show countdown if there is a next prayer
+                                if (prayer != null)
+                                  Text(
+                                    'Dalam ${controller.timeToNextPrayer.value}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
+                        }),
                       ),
 
                       // Tombol toggle gulung

@@ -1,0 +1,99 @@
+Folder PATH listing
+Volume serial number is 6844-A146
+C:.
+¦   main.dart
+¦   struktur.txt
+¦   
++---app
+    ¦   initial_binding.dart
+    ¦   
+    +---controllers
+    +---data
+    ¦   +---models
+    ¦           prayer_time.dart
+    ¦           
+    +---helpers
+    ¦       notification_scheduler.dart
+    ¦       preferences_helper.dart
+    ¦       
+    +---modules
+    ¦   +---dzikir
+    ¦   ¦   +---bindings
+    ¦   ¦   ¦       dzikir_binding.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---controllers
+    ¦   ¦   ¦       dzikir_controller.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---views
+    ¦   ¦           dzikir_view.dart
+    ¦   ¦           
+    ¦   +---home
+    ¦   ¦   +---bindings
+    ¦   ¦   ¦       home_binding.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---controllers
+    ¦   ¦   ¦       home_controller.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---views
+    ¦   ¦           home_view.dart
+    ¦   ¦           
+    ¦   +---prayer_times
+    ¦   ¦   +---bindings
+    ¦   ¦   ¦       prayer_times_binding.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---controllers
+    ¦   ¦   ¦       prayer_times_controller.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---views
+    ¦   ¦       ¦   prayer_times_view.dart
+    ¦   ¦       ¦   
+    ¦   ¦       +---widgets
+    ¦   ¦               hijri_calendar_widget.dart
+    ¦   ¦               
+    ¦   +---qibla
+    ¦   ¦   +---bindings
+    ¦   ¦   ¦       qibla_binding.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---controllers
+    ¦   ¦   ¦       qibla_controller.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---views
+    ¦   ¦           qibla_view.dart
+    ¦   ¦           
+    ¦   +---settings
+    ¦   ¦   +---controllers
+    ¦   ¦   ¦       settings_controller.dart
+    ¦   ¦   ¦       
+    ¦   ¦   +---views
+    ¦   ¦           settings_view.dart
+    ¦   ¦           
+    ¦   +---splash
+    ¦       +---bindings
+    ¦       ¦       splash_binding.dart
+    ¦       ¦       
+    ¦       +---controllers
+    ¦       ¦       splash_controller.dart
+    ¦       ¦       
+    ¦       +---views
+    ¦               splash_view.dart
+    ¦               
+    +---routes
+    ¦       app_pages.dart
+    ¦       app_routes.dart
+    ¦       
+    +---services
+    ¦       location_service.dart
+    ¦       notification_service.dart
+    ¦       prayer_cache_service.dart
+    ¦       prayer_times_service.dart
+    ¦       
+    +---theme
+    ¦       app_theme.dart
+    ¦       theme_controller.dart
+    ¦       
+    +---utils
+            logger.dart
+            notification_controller.dart
+            notification_helper.dart
+            permission_helper.dart
+            

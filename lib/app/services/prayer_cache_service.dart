@@ -35,6 +35,25 @@ class PrayerCacheService {
 
   Future<bool> isCacheExpired() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Jika tidak ada data cache, maka dianggap expired (perlu fetch)
+    if (!prefs.containsKey(_cacheKey)) {
+      return true;
+    }
+
+    // Cek setting always cache
+    try {
+      if (Get.isRegistered<SettingsController>()) {
+        final settingsController = Get.find<SettingsController>();
+        if (settingsController.alwaysCache.value) {
+          logSuccess('Always cache is enabled. Skipping expiry check.');
+          return false;
+        }
+      }
+    } catch (e) {
+      logError('Error checking always cache setting: $e');
+    }
+
     final expiryString = prefs.getString(_expiryKey);
     if (expiryString == null) return true;
     final expiryDate = DateTime.tryParse(expiryString);

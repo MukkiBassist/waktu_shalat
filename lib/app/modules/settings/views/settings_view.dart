@@ -36,6 +36,14 @@ class SettingsView extends StatelessWidget {
               onChanged: (value) => themeController.toggleTheme(),
             ),
           ),
+          Obx(
+            () => SwitchListTile(
+              title: const Text("Selalu Cache (Always Cache)"),
+              subtitle: const Text("Jadwal sholat tidak akan kadaluarsa"),
+              value: controller.alwaysCache.value,
+              onChanged: (value) => controller.toggleAlwaysCache(value),
+            ),
+          ),
           ListTile(
             title: const Text("Cache Hari Sholat"),
             subtitle: Obx(

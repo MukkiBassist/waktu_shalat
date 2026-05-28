@@ -10,7 +10,9 @@ import '../../prayer_times/controllers/prayer_times_controller.dart';
 
 class SettingsController extends GetxController {
   static const _cacheDaysKey = 'prayer_cache_days';
+  static const _alwaysCacheKey = 'prayer_always_cache';
   RxInt cacheDays = 7.obs; // Nilai default yang konsisten
+  RxBool alwaysCache = false.obs;
 
   @override
   void onInit() {
@@ -22,7 +24,11 @@ class SettingsController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     // Muat jumlah hari cache dari SharedPreferences, default ke 7
     cacheDays.value = prefs.getInt(_cacheDaysKey) ?? 7;
-    logSynced('Settings loaded: cacheDays=${cacheDays.value}');
+    // Muat setting always cache
+    alwaysCache.value = prefs.getBool(_alwaysCacheKey) ?? false;
+    logSynced(
+      'Settings loaded: cacheDays=${cacheDays.value}, alwaysCache=${alwaysCache.value}',
+    );
   }
 
   Future<void> setCacheDays(int days) async {
@@ -48,5 +54,12 @@ class SettingsController extends GetxController {
       Get.back(); // Tutup dialog setelah 2 detik
       Get.back();
     });
+  }
+
+  Future<void> toggleAlwaysCache(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_alwaysCacheKey, value);
+    alwaysCache.value = value;
+    logSuccess('Always cache updated to $value.');
   }
 }

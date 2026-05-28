@@ -58,11 +58,12 @@ Future<void> main() async {
   // ✅ Inisialisasi Workmanager (wajib await biar tidak balapan)
   await Workmanager().initialize(callbackDispatcher);
 
-  // ✅ Pastikan tidak dobel: hapus dulu task lama, lalu daftarkan ulang
-  await Workmanager().cancelByUniqueName(workManagerTaskReschedule);
+  // ✅ Daftarkan task periodic dengan policy 'replace' agar selalu terupdate
   await Workmanager().registerPeriodicTask(
     workManagerTaskReschedule, // uniqueName
     workManagerTaskReschedule, // taskName
+    existingWorkPolicy:
+        ExistingPeriodicWorkPolicy.replace, // <- Ganti task lama
     frequency: const Duration(days: 1),
     initialDelay: _initialDelayToNextMidnight(),
     constraints: Constraints(networkType: NetworkType.notRequired),

@@ -71,6 +71,16 @@ class NotificationController {
     }
   }
 
+  /// Menampilkan notifikasi peringatan jika cache kosong dan gagal fetch
+  Future<void> showCacheEmptyWarning() async {
+    await NotificationService().showWarningNotification(
+      id: 888, // ID statis untuk notifikasi peringatan ini
+      title: 'Gagal Memuat Jadwal Sholat',
+      body:
+          'Data di cache kosong & gagal mengambil data baru. Cek koneksi internet & coba lagi.',
+    );
+  }
+
   /// Helper method untuk menjadwalkan notifikasi satu per satu
   Future<void> _schedulePrayerNotificationsWithCatchup(
     List<PrayerTime> prayerTimes,
