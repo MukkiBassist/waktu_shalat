@@ -11,6 +11,8 @@ import '../modules/qibla/bindings/qibla_binding.dart';
 import '../modules/qibla/views/qibla_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
+import '../modules/quran/bindings/quran_binding.dart';
+import '../modules/quran/views/quran_view.dart';
 
 // ignore_for_file: constant_identifier_names
 
@@ -42,6 +44,11 @@ class AppPages {
       name: _Paths.SPLASH,
       page: () => const SplashView(),
       binding: SplashBinding(),
+    ),
+    GetPage(
+      name: _Paths.QURAN,
+      page: () => QuranView(),
+      binding: QuranBinding(),
     ),
   ];
 }

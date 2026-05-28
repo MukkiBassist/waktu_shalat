@@ -119,6 +119,11 @@ class HomeView extends GetView<HomeController> {
                 selectedColor: Colors.deepPurple,
               ),
               SalomonBottomBarItem(
+                icon: const Icon(Icons.menu_book),
+                title: const Text('Al-Quran'),
+                selectedColor: Colors.green,
+              ),
+              SalomonBottomBarItem(
                 icon: const Icon(Icons.auto_awesome),
                 title: const Text('Dzikir'),
                 selectedColor: Colors.orange,
